@@ -9,3 +9,5 @@ export type {
   ProcessStreamName,
 } from './types.js';
 export { LINE_REPLAY_BUFFER_SIZE } from './types.js';
+export { waitForReadiness } from './readiness.js';
+export type { ReadinessProbe, ReadinessContext } from './readiness.js';
