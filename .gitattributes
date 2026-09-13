@@ -1,0 +1,22 @@
+# Force LF in the repository and in working trees on every platform.
+# Prettier's default endOfLine is "lf"; without this, core.autocrlf=true on
+# Windows produces CRLF working copies that fail `npm run format:check`.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.mp4 binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.exe binary
+*.dll binary
+*.node binary
+*.asar binary

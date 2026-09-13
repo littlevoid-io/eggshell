@@ -1,0 +1,10 @@
+node_modules/
+dist/
+release/
+coverage/
+.vitest/
+
+# Prettier does not format JSON in this project (house convention), which is
+# also why .prettierrc.json itself is not self-formatted.
+*.json
+package-lock.json
