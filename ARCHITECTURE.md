@@ -1,6 +1,6 @@
 # eggshell — Architecture
 
-`eggshell` is an Electron kiosk-launcher shell consumed as a **library**. A consumer project imports it and calls `launchExhibit(config)` from its own Electron main entry point, and gets kiosk window management, child-process supervision, and optional add-on features. It is also designed to be the executable that an external Windows-provisioning tool launches as a startup task at logon, which is why the build emits a discoverable manifest and ships a `doctor` diagnostics command.
+`eggshell` is an Electron kiosk-launcher shell consumed as a **library**. A consumer project imports it and calls `launch(config)` from its own Electron main entry point, and gets kiosk window management, child-process supervision, and optional add-on features. It is also designed to be the executable that an external Windows-provisioning tool launches as a startup task at logon, which is why the build emits a discoverable manifest and ships a `doctor` diagnostics command.
 
 ## The one rule that shapes everything
 
@@ -81,7 +81,7 @@ The general principle: **decisions are pure functions over injected data; I/O ha
 
 Exactly two layers, in this order:
 
-1. The consumer's code config, passed to `launchExhibit()`.
+1. The consumer's code config, passed to `launch()`.
 2. One optional JSON override file, at `config.deploymentOverridePath` or `<userDataRoot>/eggshell.deployment.json`.
 
 The merged result is re-validated, so an override typo fails loudly with a field path rather than producing a black window.

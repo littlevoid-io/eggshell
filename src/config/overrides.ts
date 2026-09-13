@@ -2,7 +2,7 @@
  * Deployment override layering (T1.5). Exactly two config layers, in this
  * precedence order:
  *
- *   1. The consumer's code config, passed to `launchExhibit()`.
+ *   1. The consumer's code config, passed to `launch()`.
  *   2. One optional JSON override file, at `config.deploymentOverridePath`
  *      or `<userDataRoot>/eggshell.deployment.json`.
  *

@@ -18,12 +18,12 @@ Status values: `todo` | `in-progress` | `done` | `blocked`
 | Validation        | zod                                                                                                   | `issue.path` gives requirement 7's field paths for free; schema is the single source of truth, types inferred.                                                                                                                             |
 | Electron          | `peerDependency` (+ devDependency for types)                                                          | The consumer owns the Electron version.                                                                                                                                                                                                    |
 | electron-builder  | optional `peerDependency`, imported dynamically in `buildExhibit()`                                   | Build-only; must not bloat a runtime install.                                                                                                                                                                                              |
-| Public entry name | `launchExhibit(config)`                                                                               | Per brief. See open decisions re: domain vocabulary.                                                                                                                                                                                       |
+| Public entry name | `launch(config)`                                                                                      | Domain-neutral name, replacing the prior exhibit-specific name. See resolved decision 3 below.                                                                                                                                             |
 
 ## Deviations from the original six-phase plan
 
-1. **Pure layout engine moved from Phase 3 into Phase 2.** The resolver and supervisor are dependency-free pure functions and `launchExhibit()` cannot be written correctly without them. Building `launchExhibit` first would mean rewriting it.
-2. **Electron binding of `launchExhibit` moved from Phase 2 into Phase 3.** Phase 2 is now defined as _everything with zero Electron imports_, which makes all of it unit-testable without a display server.
+1. **Pure layout engine moved from Phase 3 into Phase 2.** The resolver and supervisor are dependency-free pure functions and `launch()` cannot be written correctly without them. Building `launch` first would mean rewriting it.
+2. **Electron binding of `launch` moved from Phase 2 into Phase 3.** Phase 2 is now defined as _everything with zero Electron imports_, which makes all of it unit-testable without a display server.
 3. **New Phase 0 (guardrails).** Requirements 2, 5 and 6 are invariants that rot silently; each gets an automated check before any code exists that could violate it.
 4. **Four requirements added** beyond the original review, each a real unattended-installation failure mode: Electron `webPreferences` hardening + navigation guards (T3.2), single-instance lock (T3.5), crash/unresponsive watchdog (T3.6), graceful child shutdown (T2.9).
 5. **Deployment override file added (T1.5).** Requirement 4 mandates a serializable schema specifically so a provisioning tool can override config without a rebuild; that feature was absent from the plan.
@@ -241,7 +241,7 @@ Absolutely zero I/O and zero `await` (I9) — `touchDisplayIds` arrives as injec
 | T3.1 | Window manager (Electron binding of T2.2)         | todo   |
 | T3.2 | Hardening + permissions wiring                    | todo   |
 | T3.3 | Preload + IPC bridge                              | todo   |
-| T3.4 | `launchExhibit()` orchestration                   | todo   |
+| T3.4 | `launch()` orchestration                          | todo   |
 | T3.5 | Single-instance lock                              | todo   |
 | T3.6 | Crash / unresponsive watchdog                     | todo   |
 | T3.7 | Display-change wiring (T2.4 to Electron `screen`) | todo   |
@@ -261,7 +261,7 @@ Absolutely zero I/O and zero `await` (I9) — `touchDisplayIds` arrives as injec
 `src/shell/preload.ts` built to `dist/preload.cjs`; a narrow `contextBridge` surface (no `ipcRenderer` exposure), channel names namespaced per plugin, and every inbound payload validated with zod before dispatch. Wire to `ShellContext.ipc`.
 **Verify:** typecheck; unit test asserting an unregistered channel is rejected and a malformed payload throws with a field path.
 
-### T3.4 — `launchExhibit()`
+### T3.4 — `launch()`
 
 `src/shell/launch.ts`: validate config (T1.4) -> apply override (T1.5) -> resolve roots (T1.2) -> single-instance lock (T3.5) -> start `production`/`always` processes and await readiness (T2.8) -> async touch probe (T2.3) -> `resolveLayout` (T2.2) -> create windows (T3.1) -> harden (T3.2) -> run plugin `setup` (T2.10) -> arm supervisor (T3.7) and watchdog (T3.6). Throws on fatal config/process errors; never calls `process.exit` (I6). Registers shutdown (T2.9) on `before-quit`. Fatal layout problems must fail loudly rather than produce a black window.
 **Verify:** typecheck + the Phase 6 example launching successfully.
@@ -352,7 +352,7 @@ Subscribe `screen.on('display-added'|'display-removed'|'display-metrics-changed'
 
 ### T5.6 — `init`
 
-Scaffold a consumer project: `eggshell.config.ts`, an Electron main calling `launchExhibit`, tsconfig, scripts. Refuse to overwrite existing files.
+Scaffold a consumer project: `eggshell.config.ts`, an Electron main calling `launch`, tsconfig, scripts. Refuse to overwrite existing files.
 **Verify:** run into a temp dir, then build and launch the scaffolded project.
 
 ---
@@ -402,7 +402,7 @@ Tracked in the lead architect's report; summarised here.
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Package name / npm scope — `eggshell` is likely taken on the public registry                                                                                                           | Keep `eggshell` locally; plan a scope (`@<org>/eggshell`) before any publish                                                  |
 | 2   | License                                                                                                                                                                                | MIT unless the venue work requires otherwise; currently unset                                                                 |
-| 3   | `launchExhibit` vs a domain-neutral name                                                                                                                                               | Keeping `launchExhibit` per brief; "exhibit" is installation-domain vocabulary in a package sold as generic                   |
+| 3   | Prior exhibit-specific entry-point name vs a domain-neutral name                                                                                                                       | **Resolved:** renamed to `launch`; "exhibit" is installation-domain vocabulary in a package sold as generic                   |
 | 4   | Soak: subpath export vs separate package                                                                                                                                               | Subpath now + a documented electron-builder exclusion; separate package only if the exclusion proves unreliable               |
 | 5   | Windows touch detection mechanism                                                                                                                                                      | Behind `TouchProbe`, so the choice is deferrable and swappable                                                                |
 | 6   | Schema defaults invented where the brief was silent: `window.kiosk: true`, `window.showWhenReady: true`, `window.fallback: 'primary'`, plus the supervisor/restart/touchProbe numerics | Reasonable but arbitrary, and now load-bearing behaviour. Worth a deliberate sign-off rather than inheritance by default      |
