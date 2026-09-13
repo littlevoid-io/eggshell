@@ -19,3 +19,5 @@ export type {
   LoggingConfig,
   ExhibitConfig,
 } from './types.js';
+
+export { validateConfig, formatIssuePath } from './validate.js';
