@@ -80,13 +80,13 @@ Match the house conventions used by sibling repos in the same parent folder. `.p
 
 | ID   | Task                               | Status |
 | ---- | ---------------------------------- | ------ |
-| T1.1 | Error hierarchy                    | todo   |
-| T1.2 | Explicit path roots                | todo   |
-| T1.3 | Config schema (zod, JSON-only)     | todo   |
-| T1.4 | Config validation with field paths | todo   |
-| T1.5 | Deployment override layering       | todo   |
-| T1.6 | Pluggable logging interface        | todo   |
-| T1.7 | Public exports map                 | todo   |
+| T1.1 | Error hierarchy                    | done   |
+| T1.2 | Explicit path roots                | done   |
+| T1.3 | Config schema (zod, JSON-only)     | done   |
+| T1.4 | Config validation with field paths | done   |
+| T1.5 | Deployment override layering       | done   |
+| T1.6 | Pluggable logging interface        | done   |
+| T1.7 | Public exports map                 | done   |
 
 ### T1.1 — Error hierarchy
 
@@ -160,8 +160,8 @@ There is **no** `shell` field and **no** `getBounds` callback — `bounds` is pl
 
 | ID    | Task                                 | Status |
 | ----- | ------------------------------------ | ------ |
-| T2.1  | Display topology signature           | todo   |
-| T2.2  | Pure layout resolver                 | todo   |
+| T2.1  | Display topology signature           | done   |
+| T2.2  | Pure layout resolver                 | done   |
 | T2.3  | Touch probe interface + Windows impl | todo   |
 | T2.4  | Window supervisor state machine      | todo   |
 | T2.5  | Port availability probe              | todo   |
@@ -398,13 +398,17 @@ A single `npm run smoke` at the repo root: lint, typecheck, unit tests, build th
 
 Tracked in the lead architect's report; summarised here.
 
-| #   | Question                                                                     | Recommendation                                                                                                  |
-| --- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 1   | Package name / npm scope — `eggshell` is likely taken on the public registry | Keep `eggshell` locally; plan a scope (`@<org>/eggshell`) before any publish                                    |
-| 2   | License                                                                      | MIT unless the venue work requires otherwise; currently unset                                                   |
-| 3   | `launchExhibit` vs a domain-neutral name                                     | Keeping `launchExhibit` per brief; "exhibit" is installation-domain vocabulary in a package sold as generic     |
-| 4   | Soak: subpath export vs separate package                                     | Subpath now + a documented electron-builder exclusion; separate package only if the exclusion proves unreliable |
-| 5   | Windows touch detection mechanism                                            | Behind `TouchProbe`, so the choice is deferrable and swappable                                                  |
+| #   | Question                                                                                                                                                                               | Recommendation                                                                                                                |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Package name / npm scope — `eggshell` is likely taken on the public registry                                                                                                           | Keep `eggshell` locally; plan a scope (`@<org>/eggshell`) before any publish                                                  |
+| 2   | License                                                                                                                                                                                | MIT unless the venue work requires otherwise; currently unset                                                                 |
+| 3   | `launchExhibit` vs a domain-neutral name                                                                                                                                               | Keeping `launchExhibit` per brief; "exhibit" is installation-domain vocabulary in a package sold as generic                   |
+| 4   | Soak: subpath export vs separate package                                                                                                                                               | Subpath now + a documented electron-builder exclusion; separate package only if the exclusion proves unreliable               |
+| 5   | Windows touch detection mechanism                                                                                                                                                      | Behind `TouchProbe`, so the choice is deferrable and swappable                                                                |
+| 6   | Schema defaults invented where the brief was silent: `window.kiosk: true`, `window.showWhenReady: true`, `window.fallback: 'primary'`, plus the supervisor/restart/touchProbe numerics | Reasonable but arbitrary, and now load-bearing behaviour. Worth a deliberate sign-off rather than inheritance by default      |
+| 7   | `window.url` accepts any non-empty string rather than a validated URL                                                                                                                  | Kept permissive so local file paths still work; `doctor` should warn instead. Revisit once window-loading semantics are fixed |
+| 8   | An explicit absolute `deploymentOverridePath` is not containment-checked, unlike every other path in the package                                                                       | Intentional — a provisioning tool may stage the file anywhere readable. Confirm this relaxation is acceptable                 |
+| 9   | `display.label` is included in the topology signature and can change on a driver update without the physical layout changing                                                           | Required, because role rules match on it. Watch for driver-triggered re-applies in the field                                  |
 
 ## Progress log
 
@@ -412,9 +416,20 @@ Tracked in the lead architect's report; summarised here.
 | --------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `3891c51` | T0.1, T0.3, T0.4 — toolchain, ARCHITECTURE.md, formatting conventions | `typecheck`, `build`, `test`, `format:check` all exit 0; typescript-eslint parser loads under the pinned TS 6.x                                                                                                                               |
 | `30ffd96` | T0.2 — eslint invariant enforcement                                   | all 10 invariant rules verified firing against on-disk fixtures; both intended exemptions (`process.exit` in `src/cli/bin.ts`, `process.cwd()` in `src/cli/**`) verified silent; `import-x/no-cycle` verified firing on a real two-file cycle |
+| `d1cda71` | T1.1, T1.3, T1.6 — errors, config schema, logging seam                | 50 tests; I4 JSON round-trip on a maximal fixture; schema rejects function values                                                                                                                                                             |
+| `ec08f9a` | T1.2, T1.4 — explicit path roots, config validation                   | 83 tests; containment rejects `../` escapes and sibling-directory false positives; field paths asserted exactly                                                                                                                               |
+| `9af7835` | T1.5, T2.1 — deployment overrides, topology signature                 | 113 tests; array-replace and prototype-pollution guards; `colorDepth`/`displayFrequency` exclusion regression tests                                                                                                                           |
+| `1ca15d7` | T2.2, T1.7 — pure layout resolver, public exports map                 | 141 tests; pure-zone lint proven to reject `node:fs` and `async` in `resolve.ts`; all 8 problem codes emitted, none dead                                                                                                                      |
 
 ### Notes carried forward
 
 - `import-x/no-cycle` is a no-op on `.ts` files unless `import-x/extensions` includes `.ts` — it defaults to js/mjs/cjs and silently skips TypeScript. Both that setting and the nodenext `.js`-specifier resolver are configured in `eslint.config.mjs`; do not remove either.
 - Agents working in this repo must Prettier-format only their own files (`npx prettier --write <paths>`), never repo-wide `npm run format`, which has already caused one cross-agent collision on concurrently-edited markdown.
 - `.gitattributes` forces LF. Do not remove it; Prettier's default `endOfLine: "lf"` would otherwise fail `format:check` on a fresh Windows clone.
+- zod v4 `.default(x)` substitutes `x` verbatim without re-running it through the inner schema, so nested defaults do NOT cascade. Nested defaults are derived via `Schema.parse({})`. Do not replace those with literals.
+- zod v4 `unrecognized_keys` issues do not name the offending key in `issue.path` — the path points at the containing object and the key names sit in `issue.keys`. `formatIssuePath` alone is insufficient for that issue code; reuse `validate.ts`'s mapping.
+- The zod schema _values_ are intentionally not exported from the package root, only the inferred types. Keeping them internal leaves the validation library swappable and prevents consumers bypassing `validateConfig`'s field-path errors.
+- `topologySignature` deliberately excludes `colorDepth` and `displayFrequency` but includes `primary`. If placement logic ever becomes refresh-rate dependent, the supervisor upstream will swallow the events it needs — revisit the exclusion then, not before.
+- `spanAll` downgrades to windowed for BOTH `kiosk` and `fullscreen`, because both snap to a single display in Electron. Do not restore kiosk-only handling.
+- `duplicate-target` intentionally ignores placements with `displayId: null`, so two `spanAll` layers (background plus transparent overlay) do not warn. This exemption is deliberate.
+- `bin` and the `./cli` subpath export are deliberately absent until Phase 5 — a `bin` entry pointing at a nonexistent script installs a broken CLI shim.
