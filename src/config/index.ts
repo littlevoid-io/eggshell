@@ -21,3 +21,6 @@ export type {
 } from './types.js';
 
 export { validateConfig, formatIssuePath } from './validate.js';
+
+export { DEFAULT_OVERRIDE_FILENAME, resolveOverridePath, loadExhibitConfig } from './overrides.js';
+export type { LoadExhibitConfigOptions } from './overrides.js';
