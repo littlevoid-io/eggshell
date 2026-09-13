@@ -8,3 +8,10 @@ export type {
 } from './types.js';
 export { topologySignature } from './signature.js';
 export { resolveLayout } from './resolve.js';
+export { createWindowSupervisor } from './supervisor.js';
+export type {
+  SupervisorState,
+  GivenUpReason,
+  WindowSupervisor,
+  WindowSupervisorOptions,
+} from './supervisor.js';
