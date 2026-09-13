@@ -20,6 +20,8 @@ const PLUGIN_ZONE_MESSAGE =
 
 const SHELL_SPAWN_MESSAGE =
   'Child processes must never spawn through a shell (I2). Use an argv array via spawn/execFile, never a joined command string.';
+const BROAD_SHELL_PROPERTY_MESSAGE =
+  'No object literal may have a `shell` property (I2). `args` must be an argv array, never a joined command string, and process spawning must never enable a shell. This rule is intentionally blunt — it bans `shell` on any object literal anywhere, not just as a direct argument to a spawn call — because the narrower spawn-call-site selector was bypassable via an aliased import or by building the options object in a variable before passing it in.';
 const EXEC_MESSAGE =
   'exec/execSync are shell-based by construction (I2). Use an argv array via spawn/execFile, never a joined command string.';
 const EXIT_MESSAGE =
@@ -42,6 +44,19 @@ const SHELL_PROPERTY_SELECTOR = {
   selector:
     ":matches(CallExpression[callee.name=/^(spawn|spawnSync|fork)$/], CallExpression[callee.property.name=/^(spawn|spawnSync|fork)$/]) > ObjectExpression > Property[key.name='shell']",
   message: SHELL_SPAWN_MESSAGE,
+};
+// Broad, deliberately blunt backstop for I2: bans a `shell` property on ANY
+// object literal, regardless of whether/how it reaches a spawn call. Closes
+// two proven bypasses of SHELL_PROPERTY_SELECTOR above: (1) importing spawn
+// under an alias, since that selector only matches the literal callee names
+// spawn/spawnSync/fork; (2) building the options object in a variable and
+// passing the variable in, since that selector requires the ObjectExpression
+// to be a direct child of the CallExpression. Kept alongside the narrower
+// selector, which still fires first with a more specific message when it
+// matches the direct-literal case.
+const BROAD_SHELL_PROPERTY_SELECTOR = {
+  selector: ":matches(Property[key.name='shell'], Property[key.value='shell'])",
+  message: BROAD_SHELL_PROPERTY_MESSAGE,
 };
 const EXEC_MEMBER_SELECTOR = {
   selector:
@@ -129,6 +144,7 @@ export default tseslint.config(
         'error',
         EXIT_SELECTOR,
         SHELL_PROPERTY_SELECTOR,
+        BROAD_SHELL_PROPERTY_SELECTOR,
         EXEC_MEMBER_SELECTOR,
         CWD_SELECTOR,
       ],
@@ -179,6 +195,7 @@ export default tseslint.config(
         'error',
         EXIT_SELECTOR,
         SHELL_PROPERTY_SELECTOR,
+        BROAD_SHELL_PROPERTY_SELECTOR,
         EXEC_MEMBER_SELECTOR,
       ],
     },
@@ -190,7 +207,12 @@ export default tseslint.config(
   {
     files: ['src/cli/bin.ts'],
     rules: {
-      'no-restricted-syntax': ['error', SHELL_PROPERTY_SELECTOR, EXEC_MEMBER_SELECTOR],
+      'no-restricted-syntax': [
+        'error',
+        SHELL_PROPERTY_SELECTOR,
+        BROAD_SHELL_PROPERTY_SELECTOR,
+        EXEC_MEMBER_SELECTOR,
+      ],
     },
   },
 
@@ -202,6 +224,7 @@ export default tseslint.config(
         'error',
         EXIT_SELECTOR,
         SHELL_PROPERTY_SELECTOR,
+        BROAD_SHELL_PROPERTY_SELECTOR,
         EXEC_MEMBER_SELECTOR,
         CWD_SELECTOR,
         ENV_SELECTOR,
@@ -218,6 +241,7 @@ export default tseslint.config(
         'error',
         EXIT_SELECTOR,
         SHELL_PROPERTY_SELECTOR,
+        BROAD_SHELL_PROPERTY_SELECTOR,
         EXEC_MEMBER_SELECTOR,
         CWD_SELECTOR,
         ...PURE_LAYER_ASYNC_SELECTORS,
