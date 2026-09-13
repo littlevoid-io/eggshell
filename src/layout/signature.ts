@@ -14,9 +14,14 @@
  * behavioural contract, not an implementation detail:
  *
  * - Included: `id`, `bounds`, `workArea`, `scaleFactor`, `rotation`,
- *   `internal`, `label`, `touchSupport` — every field that can change where
- *   a window ends up. A 1px `workArea` change (e.g. a taskbar appearing)
- *   must change the signature, because it is a real change to usable space.
+ *   `internal`, `label`, `touchSupport`, `primary` — every field that can
+ *   change where a window ends up. A 1px `workArea` change (e.g. a taskbar
+ *   appearing) must change the signature, because it is a real change to
+ *   usable space. `primary` is included because Windows can reassign the
+ *   primary monitor without changing any display's `bounds` — without this
+ *   field, a `{kind:'primary'}` or `fallback:'primary'` window could move
+ *   while the topology signature stayed identical, and the supervisor would
+ *   drop the very event it needed to react to.
  * - Excluded: `colorDepth`, `displayFrequency` — Windows fires
  *   `display-metrics-changed` for refresh-rate and colour-depth changes,
  *   neither of which can affect window placement. In the predecessor, every
@@ -65,6 +70,7 @@ function serializeDisplay(display: DisplaySnapshot): string {
     display.internal,
     display.label,
     display.touchSupport,
+    display.primary,
   ].join(FIELD_SEPARATOR);
 }
 

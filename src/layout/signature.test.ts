@@ -9,6 +9,7 @@ import type { DisplaySnapshot } from './types.js';
 function buildDisplay(overrides: Partial<DisplaySnapshot> = {}): DisplaySnapshot {
   return {
     id: 1,
+    primary: true,
     bounds: { x: 0, y: 0, width: 1920, height: 1080 },
     workArea: { x: 0, y: 0, width: 1920, height: 1040 },
     scaleFactor: 1,
@@ -64,11 +65,28 @@ describe('topologySignature', () => {
     ['internal', { internal: true }],
     ['label', { label: 'Something Else' }],
     ['touchSupport', { touchSupport: 'available' as const }],
+    ['primary', { primary: false }],
   ])('changes the signature when %s changes', (_field, overrides) => {
     const base = [buildDisplay()];
     const changed = [buildDisplay(overrides)];
 
     expect(topologySignature(base)).not.toBe(topologySignature(changed));
+  });
+
+  it('REGRESSION (primary reassignment): flipping which display is primary changes the signature even though no bounds moved', () => {
+    // Windows can reassign the primary monitor without moving any display's
+    // bounds. Without `primary` in the signature, this reassignment would be
+    // invisible to the supervisor's dedup — see ARCHITECTURE.md I9/T2.2.
+    const before = [
+      buildDisplay({ id: 1, primary: true, label: 'A' }),
+      buildDisplay({ id: 2, primary: false, label: 'B' }),
+    ];
+    const after = [
+      buildDisplay({ id: 1, primary: false, label: 'A' }),
+      buildDisplay({ id: 2, primary: true, label: 'B' }),
+    ];
+
+    expect(topologySignature(before)).not.toBe(topologySignature(after));
   });
 
   it('REGRESSION (cascade bug): changing colorDepth does NOT change the signature', () => {
@@ -109,6 +127,7 @@ describe('topologySignature', () => {
   it('produces the same signature for structurally-identical snapshots with differently-ordered keys', () => {
     const a: DisplaySnapshot = {
       id: 1,
+      primary: true,
       bounds: { x: 0, y: 0, width: 1920, height: 1080 },
       workArea: { x: 0, y: 0, width: 1920, height: 1040 },
       scaleFactor: 1,
@@ -127,6 +146,7 @@ describe('topologySignature', () => {
       internal: false,
       rotation: 0,
       scaleFactor: 1,
+      primary: true,
       workArea: { height: 1040, width: 1920, y: 0, x: 0 },
       bounds: { height: 1080, width: 1920, y: 0, x: 0 },
       id: 1,

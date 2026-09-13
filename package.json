@@ -13,8 +13,25 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./plugins/dashboard": {
+      "types": "./dist/plugins/dashboard/index.d.ts",
+      "import": "./dist/plugins/dashboard/index.js"
+    },
+    "./plugins/offline": {
+      "types": "./dist/plugins/offline/index.d.ts",
+      "import": "./dist/plugins/offline/index.js"
+    },
+    "./plugins/companion": {
+      "types": "./dist/plugins/companion/index.d.ts",
+      "import": "./dist/plugins/companion/index.js"
+    },
+    "./plugins/soak": {
+      "types": "./dist/plugins/soak/index.d.ts",
+      "import": "./dist/plugins/soak/index.js"
     }
   },
+  "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",

@@ -1,2 +1,54 @@
-/** Package version marker; real public surface is added in Phase 1. */
-export const PACKAGE_NAME = 'eggshell';
+/**
+ * Public surface of the `eggshell` package (T1.7). Re-exports only what
+ * consumers should depend on directly — internal module layout under
+ * `src/**` is not part of the contract.
+ *
+ * TODO(Phase 2): re-export `src/layout/**` once its public surface is
+ * settled; it is under active development and intentionally omitted here.
+ */
+
+export {
+  EggshellError,
+  LayoutError,
+  BuildError,
+  ProcessError,
+  PluginError,
+  ConfigError,
+  isEggshellError,
+} from './errors.js';
+export type { ConfigIssue } from './errors.js';
+
+// The zod schemas (boundsSchema, exhibitConfigSchema, etc.) are intentionally
+// kept internal: validateConfig/loadExhibitConfig are the only supported
+// validation entry points, which keeps the validation library swappable and
+// preserves the field-path error mapping (I7) that calling a schema directly
+// would bypass.
+export {
+  validateConfig,
+  formatIssuePath,
+  DEFAULT_OVERRIDE_FILENAME,
+  loadExhibitConfig,
+} from './config/index.js';
+export type {
+  Bounds,
+  DisplayTarget,
+  WindowConfig,
+  ProcessConfig,
+  DisplayPolicy,
+  PermissionPolicy,
+  LoggingConfig,
+  ExhibitConfig,
+  LoadExhibitConfigOptions,
+} from './config/index.js';
+
+export { resolveRoots, resolvePackageAsset, resolveProjectPath } from './paths/index.js';
+export type { ShellRoots, ShellRootsInput } from './paths/index.js';
+
+export {
+  LOG_LEVELS,
+  createChildLogger,
+  noopLogger,
+  withMinimumLevel,
+  consoleLogger,
+} from './logging/index.js';
+export type { LogLevel, LogFields, Logger } from './logging/index.js';
