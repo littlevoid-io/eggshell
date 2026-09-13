@@ -251,5 +251,17 @@ export default tseslint.config(
     rules: {
       'no-console': 'off',
     },
+  },
+
+  // T1.6 — this file's entire purpose is writing to the console (the Logger
+  // implementation backing `consoleLogger`), so it is the single legitimate
+  // exception to the `no-console` ban above. Scoped to exactly this file, not
+  // the whole `src/logging/` directory — core still logs only through the
+  // injected `Logger` interface.
+  {
+    files: ['src/logging/console-logger.ts'],
+    rules: {
+      'no-console': 'off',
+    },
   }
 );

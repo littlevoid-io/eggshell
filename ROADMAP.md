@@ -49,10 +49,10 @@ Status values: `todo` | `in-progress` | `done` | `blocked`
 
 | ID   | Task                            | Status |
 | ---- | ------------------------------- | ------ |
-| T0.1 | Toolchain scaffold              | todo   |
-| T0.2 | Automated invariant enforcement | todo   |
-| T0.3 | ARCHITECTURE.md decision record | todo   |
-| T0.4 | Formatting conventions          | todo   |
+| T0.1 | Toolchain scaffold              | done   |
+| T0.2 | Automated invariant enforcement | done   |
+| T0.3 | ARCHITECTURE.md decision record | done   |
+| T0.4 | Formatting conventions          | done   |
 
 ### T0.1 — Toolchain scaffold
 
@@ -405,3 +405,16 @@ Tracked in the lead architect's report; summarised here.
 | 3   | `launchExhibit` vs a domain-neutral name                                     | Keeping `launchExhibit` per brief; "exhibit" is installation-domain vocabulary in a package sold as generic     |
 | 4   | Soak: subpath export vs separate package                                     | Subpath now + a documented electron-builder exclusion; separate package only if the exclusion proves unreliable |
 | 5   | Windows touch detection mechanism                                            | Behind `TouchProbe`, so the choice is deferrable and swappable                                                  |
+
+## Progress log
+
+| Commit    | Scope                                                                 | Verified by                                                                                                                                                                                                                                   |
+| --------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `3891c51` | T0.1, T0.3, T0.4 — toolchain, ARCHITECTURE.md, formatting conventions | `typecheck`, `build`, `test`, `format:check` all exit 0; typescript-eslint parser loads under the pinned TS 6.x                                                                                                                               |
+| `30ffd96` | T0.2 — eslint invariant enforcement                                   | all 10 invariant rules verified firing against on-disk fixtures; both intended exemptions (`process.exit` in `src/cli/bin.ts`, `process.cwd()` in `src/cli/**`) verified silent; `import-x/no-cycle` verified firing on a real two-file cycle |
+
+### Notes carried forward
+
+- `import-x/no-cycle` is a no-op on `.ts` files unless `import-x/extensions` includes `.ts` — it defaults to js/mjs/cjs and silently skips TypeScript. Both that setting and the nodenext `.js`-specifier resolver are configured in `eslint.config.mjs`; do not remove either.
+- Agents working in this repo must Prettier-format only their own files (`npx prettier --write <paths>`), never repo-wide `npm run format`, which has already caused one cross-agent collision on concurrently-edited markdown.
+- `.gitattributes` forces LF. Do not remove it; Prettier's default `endOfLine: "lf"` would otherwise fail `format:check` on a fresh Windows clone.
