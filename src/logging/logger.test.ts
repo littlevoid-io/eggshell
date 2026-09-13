@@ -1,6 +1,3 @@
-/// <reference types="node" />
-// The reference above exposes the ambient `console` global for the
-// vi.spyOn(console, ...) calls below; see console-logger.ts for why.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { Logger, LogFields, LogLevel } from './logger.js';
 import { createChildLogger, noopLogger, withMinimumLevel } from './logger.js';

@@ -6,7 +6,10 @@
  * predecessor's hardcoded registry is exactly what this interface replaces.
  */
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+/** Ordering of levels from least to most severe. Single source of truth. */
+export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
+
+export type LogLevel = (typeof LOG_LEVELS)[number];
 
 /**
  * Structured fields attached to a log call. Values MUST be JSON-serializable
@@ -59,15 +62,12 @@ export function createChildLogger(parent: Logger, scope: string): Logger {
   };
 }
 
-/** Ordering of levels from least to most severe. Single source of truth. */
-const LEVEL_ORDER: readonly LogLevel[] = ['debug', 'info', 'warn', 'error'];
-
 export type LevelFilter = (level: LogLevel) => boolean;
 
 /** Returns a `Logger` that drops calls below `minimum`, delegating the rest to `logger`. */
 export function withMinimumLevel(logger: Logger, minimum: LogLevel): Logger {
-  const minimumIndex = LEVEL_ORDER.indexOf(minimum);
-  const isAllowed: LevelFilter = level => LEVEL_ORDER.indexOf(level) >= minimumIndex;
+  const minimumIndex = LOG_LEVELS.indexOf(minimum);
+  const isAllowed: LevelFilter = level => LOG_LEVELS.indexOf(level) >= minimumIndex;
 
   const filteredCall =
     (level: LogLevel) =>

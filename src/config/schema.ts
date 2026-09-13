@@ -23,6 +23,8 @@
 
 import { z } from 'zod';
 
+import { LOG_LEVELS } from '../logging/index.js';
+
 // ---------------------------------------------------------------------------
 // Shared primitives
 // ---------------------------------------------------------------------------
@@ -267,7 +269,7 @@ const permissionPolicyDefault = permissionPolicySchema.parse({});
 
 export const loggingConfigSchema = z
   .object({
-    level: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+    level: z.enum([...LOG_LEVELS]).default('info'),
   })
   .strict();
 const loggingConfigDefault = loggingConfigSchema.parse({});

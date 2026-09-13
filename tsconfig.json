@@ -19,7 +19,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
-    "useDefineForClassFields": true
+    "useDefineForClassFields": true,
+    // TypeScript 6 no longer auto-includes every installed @types/* package,
+    // so Node globals (console, process, Buffer, ...) must be requested
+    // explicitly here, once, for the whole program.
+    "types": ["node"]
   },
   // moduleResolution "nodenext" requires explicit .js extensions on all relative imports in source.
   "include": ["src/**/*.ts"]

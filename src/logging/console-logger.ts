@@ -1,15 +1,8 @@
-/// <reference types="node" />
 /**
  * `Logger` implementation writing to the console. This is the one file in
  * `src/` whose entire purpose is writing to the console, so it carries a
  * narrow, file-scoped `no-console` exemption in `eslint.config.mjs` rather
  * than an inline disable (inline disables are banned in this project).
- *
- * The triple-slash reference above is required because this project's
- * tsconfig does not set `types`/`lib` to expose the ambient Node globals
- * (`console` included) automatically; no other file currently touches one.
- * Not an edit to tsconfig — a local, explicit type reference in the one
- * file that needs it.
  */
 
 import type { Logger, LogFields } from './logger.js';
