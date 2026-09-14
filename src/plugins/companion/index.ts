@@ -1,9 +1,16 @@
 /**
- * `companion` plugin — not yet implemented. Owned by Phase 4 (see
- * ROADMAP.md). This stub exists only so the package's `exports` map
- * (T1.7) resolves to a real file; it deliberately exposes no plugin
- * object, since a no-op `setup()` would look wired up while doing
- * nothing.
+ * Public exports for the `companion` plugin (T4.3).
  */
 
-export const PLUGIN_ID = 'companion';
+export { PLUGIN_ID, createCompanionPlugin } from './plugin.js';
+export type { CompanionPluginOptions } from './plugin.js';
+export { companionConfigSchema, validateCompanionConfig } from './schema.js';
+export { CompanionStateMachine } from './state-machine.js';
+export type { StateMachineInitialOptions } from './state-machine.js';
+export { CompanionViewManager } from './view.js';
+export type { CompanionViewManagerOptions } from './view.js';
+export { detectLocalIp, buildCompanionUrl } from './network.js';
+export type { BuildCompanionUrlOptions, NetworkInterfaceDirectory } from './network.js';
+export { generateQrDataUrl } from './qr.js';
+export type { QrCodeGenerator } from './qr.js';
+export type { CompanionConfig, CompanionState } from './types.js';

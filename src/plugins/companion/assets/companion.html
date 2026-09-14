@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Companion</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #f1f5f9;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .overlay-backdrop {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(15, 23, 42, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 24px;
+      }
+      .card {
+        position: relative;
+        width: 100%;
+        max-width: 400px;
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 32px 28px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        animation: appear 0.2s ease-out;
+      }
+      @keyframes appear {
+        from {
+          transform: scale(0.95);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .close-button {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: rgba(255, 255, 255, 0.08);
+        color: #94a3b8;
+        border-radius: 50%;
+        font-size: 20px;
+        line-height: 32px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .close-button:hover {
+        background: rgba(255, 255, 255, 0.16);
+        color: #ffffff;
+      }
+      .title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #f8fafc;
+        margin-bottom: 8px;
+        letter-spacing: -0.01em;
+      }
+      .description {
+        font-size: 0.875rem;
+        color: #94a3b8;
+        line-height: 1.4;
+        margin-bottom: 24px;
+        padding: 0 8px;
+      }
+      .qr-frame {
+        background: #ffffff;
+        padding: 14px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      .qr-image {
+        display: block;
+        width: 200px;
+        height: 200px;
+      }
+      .url-badge {
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 6px 14px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.8125rem;
+        color: #38bdf8;
+        margin-bottom: 16px;
+      }
+      .footer-hint {
+        font-size: 0.75rem;
+        color: #64748b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="overlay-backdrop" id="backdrop">
+      <div class="card" id="card">
+        <button class="close-button" id="closeButton" aria-label="Close">&times;</button>
+        <h2 class="title" id="title">Companion</h2>
+        <p class="description" id="description">Scan to connect to this kiosk</p>
+        <div class="qr-frame">
+          <img class="qr-image" id="qrImage" alt="Companion QR Code" />
+        </div>
+        <div class="url-badge" id="urlText"></div>
+        <p class="footer-hint">Tap outside or press Esc to dismiss</p>
+      </div>
+    </div>
+
+    <script>
+      const backdrop = document.getElementById('backdrop');
+      const closeButton = document.getElementById('closeButton');
+      const titleEl = document.getElementById('title');
+      const descEl = document.getElementById('description');
+      const qrImage = document.getElementById('qrImage');
+      const urlText = document.getElementById('urlText');
+
+      function dismissOverlay() {
+        if (window.eggshell && typeof window.eggshell.invoke === 'function') {
+          window.eggshell.invoke('companion:dismiss').catch(() => {});
+        }
+      }
+
+      function renderState(state) {
+        if (!state) return;
+        if (state.title) titleEl.textContent = state.title;
+        if (state.description !== undefined) {
+          descEl.textContent = state.description;
+          descEl.style.display = state.description ? 'block' : 'none';
+        }
+        if (state.qrDataUrl) qrImage.src = state.qrDataUrl;
+        if (state.url) urlText.textContent = state.url;
+      }
+
+      closeButton.addEventListener('click', dismissOverlay);
+      backdrop.addEventListener('click', event => {
+        if (event.target === backdrop) dismissOverlay();
+      });
+      window.addEventListener('keydown', event => {
+        if (event.key === 'Escape') dismissOverlay();
+      });
+
+      if (window.eggshell && typeof window.eggshell.invoke === 'function') {
+        window.eggshell
+          .invoke('companion:status')
+          .then(renderState)
+          .catch(() => {});
+      }
+    </script>
+  </body>
+</html>
