@@ -23,3 +23,20 @@ export type {
 
 export { IPC_BRIDGE_CHANNEL, MAX_ENVELOPE_BYTES, registerIpcBridge } from './ipc-bridge.js';
 export type { IpcBridgeHandle, IpcDispatcher, RegisterIpcBridgeOptions } from './ipc-bridge.js';
+
+export { createWatchdog } from './watchdog.js';
+export type {
+  Watchdog,
+  WatchdogOptions,
+  WatchdogWindowState,
+  WatchdogWindowStatus,
+} from './watchdog.js';
+
+export { acquireSingleInstanceLock } from './single-instance.js';
+export type {
+  AcquireSingleInstanceLockOptions,
+  SecondInstanceHandler,
+  SecondInstanceInfo,
+  SingleInstanceApp,
+  SingleInstanceLockResult,
+} from './single-instance.js';
