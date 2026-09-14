@@ -45,6 +45,7 @@ function createMockContext(config: unknown = {}): {
       userDataRoot: 'C:/mock/user',
     },
     config,
+    signal: new AbortController().signal,
   };
 
   return { context, ipcHandlers, commandHandlers, publishedStatuses };
@@ -103,6 +104,34 @@ describe('offline plugin (T4.1)', () => {
     const dismissedState = publishedStatuses[publishedStatuses.length - 1] as OfflineOverlayState;
     expect(dismissedState.isShowing).toBe(false);
     expect(dismissedState.isDismissedByUser).toBe(true);
+
+    await plugin.teardown?.();
+  });
+
+  it('always calls updateViews when a command is invoked even if state boolean did not change', async () => {
+    const { context, commandHandlers } = createMockContext();
+    const showMock = vi.fn();
+    const hideMock = vi.fn();
+    const plugin = createOfflinePlugin({
+      viewManager: { show: showMock, hide: hideMock, destroy: vi.fn() } as never,
+    });
+
+    await plugin.setup(context);
+
+    const forceShow = commandHandlers.get('force-show')!;
+    forceShow();
+    expect(showMock).toHaveBeenCalledTimes(1);
+
+    // Re-invoke force-show, should call showMock again for any newly appeared windows
+    forceShow();
+    expect(showMock).toHaveBeenCalledTimes(2);
+
+    const dismiss = commandHandlers.get('dismiss')!;
+    dismiss();
+    expect(hideMock).toHaveBeenCalledTimes(1);
+    
+    dismiss();
+    expect(hideMock).toHaveBeenCalledTimes(2);
 
     await plugin.teardown?.();
   });

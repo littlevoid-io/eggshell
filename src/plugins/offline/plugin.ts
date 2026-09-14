@@ -81,8 +81,9 @@ function setupHandlers(
   config: OfflineOverlayConfig
 ): void {
   const applyChange = (changed: boolean) => {
+    // Always call updateViews to ensure newly created windows get the view if it is showing
+    updateViews(context, stateMachine.getState().isShowing, views, config);
     if (changed) {
-      updateViews(context, stateMachine.getState().isShowing, views, config);
       publishState(context, stateMachine.getState());
     }
   };
