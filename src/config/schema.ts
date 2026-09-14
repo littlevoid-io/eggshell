@@ -52,7 +52,7 @@ const positiveIntMs = (label: string) =>
  */
 const APP_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)+$/;
 const APP_ID_MESSAGE =
-  'appId must be reverse-DNS style, e.g. "com.example.my-exhibit": two or more ' +
+  'appId must be reverse-DNS style, e.g. "com.example.my-kiosk": two or more ' +
   'dot-separated segments, each lowercase letters/digits with interior hyphens ' +
   'only (no leading/trailing dot or hyphen, no uppercase, no underscore)';
 
@@ -275,7 +275,7 @@ export const loggingConfigSchema = z
 const loggingConfigDefault = loggingConfigSchema.parse({});
 
 // ---------------------------------------------------------------------------
-// ExhibitConfig
+// ShellConfig
 // ---------------------------------------------------------------------------
 
 /** Finds indexes of items whose `id` repeats an earlier item's `id`. */
@@ -292,7 +292,7 @@ function findDuplicateIdIndexes(items: readonly { id: string }[]): number[] {
   return duplicates;
 }
 
-export const exhibitConfigSchema = z
+export const shellConfigSchema = z
   .object({
     appId: z.string().regex(APP_ID_PATTERN, APP_ID_MESSAGE),
     productName: nonEmptyString('productName'),

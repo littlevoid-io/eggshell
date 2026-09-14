@@ -18,8 +18,8 @@ export {
 } from './errors.js';
 export type { ConfigIssue } from './errors.js';
 
-// The zod schemas (boundsSchema, exhibitConfigSchema, etc.) are intentionally
-// kept internal: validateConfig/loadExhibitConfig are the only supported
+// The zod schemas (boundsSchema, shellConfigSchema, etc.) are intentionally
+// kept internal: validateConfig/loadShellConfig are the only supported
 // validation entry points, which keeps the validation library swappable and
 // preserves the field-path error mapping (I7) that calling a schema directly
 // would bypass.
@@ -27,7 +27,7 @@ export {
   validateConfig,
   formatIssuePath,
   DEFAULT_OVERRIDE_FILENAME,
-  loadExhibitConfig,
+  loadShellConfig,
 } from './config/index.js';
 export type {
   Bounds,
@@ -37,8 +37,8 @@ export type {
   DisplayPolicy,
   PermissionPolicy,
   LoggingConfig,
-  ExhibitConfig,
-  LoadExhibitConfigOptions,
+  ShellConfig,
+  LoadShellConfigOptions,
 } from './config/index.js';
 
 export { resolveRoots, resolvePackageAsset, resolveProjectPath } from './paths/index.js';

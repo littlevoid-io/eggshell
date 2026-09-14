@@ -23,7 +23,7 @@ import type { Logger } from '../logging/index.js';
 import { noopLogger } from '../logging/index.js';
 import { resolveProjectPath, type ShellRoots } from '../paths/roots.js';
 import { validateConfig } from './validate.js';
-import type { ExhibitConfig } from './types.js';
+import type { ShellConfig } from './types.js';
 
 /** Default override file name, resolved under `roots.userDataRoot` when no explicit path is given. */
 export const DEFAULT_OVERRIDE_FILENAME = 'eggshell.deployment.json';
@@ -31,7 +31,7 @@ export const DEFAULT_OVERRIDE_FILENAME = 'eggshell.deployment.json';
 /** Keys ignored while merging, because the override file is JSON parsed from a machine a provisioning tool writes to. */
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
-export interface LoadExhibitConfigOptions {
+export interface LoadShellConfigOptions {
   /** The consumer's raw, unvalidated code config object. */
   config: unknown;
   roots: ShellRoots;
@@ -205,7 +205,7 @@ function readOverrideFile(overridePath: string): OverrideFileResult {
 
 /**
  * The T1.5 entry point: applies the deployment override layer and returns a
- * fully-validated `ExhibitConfig`.
+ * fully-validated `ShellConfig`.
  *
  * Ordering matters: this merges the RAW consumer config with the RAW override
  * file, and validates the merged result exactly once. Validating the
@@ -215,11 +215,11 @@ function readOverrideFile(overridePath: string): OverrideFileResult {
  * an override could then not reliably change a defaulted field. Merging raw
  * inputs and validating once preserves that distinction.
  */
-export function loadExhibitConfig({
+export function loadShellConfig({
   config,
   roots,
   logger = noopLogger,
-}: LoadExhibitConfigOptions): ExhibitConfig {
+}: LoadShellConfigOptions): ShellConfig {
   const overridePath = resolveOverridePath(config, roots);
   const { found, raw: override } = readOverrideFile(overridePath);
 

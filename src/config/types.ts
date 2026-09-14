@@ -13,7 +13,7 @@ import type {
   displayPolicySchema,
   permissionPolicySchema,
   loggingConfigSchema,
-  exhibitConfigSchema,
+  shellConfigSchema,
 } from './schema.js';
 
 export type Bounds = z.infer<typeof boundsSchema>;
@@ -23,4 +23,4 @@ export type ProcessConfig = z.infer<typeof processConfigSchema>;
 export type DisplayPolicy = z.infer<typeof displayPolicySchema>;
 export type PermissionPolicy = z.infer<typeof permissionPolicySchema>;
 export type LoggingConfig = z.infer<typeof loggingConfigSchema>;
-export type ExhibitConfig = z.infer<typeof exhibitConfigSchema>;
+export type ShellConfig = z.infer<typeof shellConfigSchema>;

@@ -6,7 +6,7 @@ import { formatIssuePath, validateConfig } from './validate.js';
 function minimalConfig() {
   return {
     appId: 'com.example.minimal',
-    productName: 'Minimal Exhibit',
+    productName: 'Minimal Kiosk',
     windows: [{ id: 'main', url: 'http://localhost:3000', target: { kind: 'primary' } }],
   };
 }

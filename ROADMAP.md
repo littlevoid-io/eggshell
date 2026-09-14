@@ -17,8 +17,8 @@ Status values: `todo` | `in-progress` | `done` | `blocked`
 | Formatting        | Prettier, house config (`trailingComma: es5`, `singleQuote`, `printWidth: 100`, `arrowParens: avoid`) | Matches sibling repos in the same parent folder. No `eslint-config-prettier` — typescript-eslint carries no formatting rules, so there is nothing to disable.                                                                              |
 | Validation        | zod                                                                                                   | `issue.path` gives requirement 7's field paths for free; schema is the single source of truth, types inferred.                                                                                                                             |
 | Electron          | `peerDependency` (+ devDependency for types)                                                          | The consumer owns the Electron version.                                                                                                                                                                                                    |
-| electron-builder  | optional `peerDependency`, imported dynamically in `buildExhibit()`                                   | Build-only; must not bloat a runtime install.                                                                                                                                                                                              |
-| Public entry name | `launch(config)`                                                                                      | Domain-neutral name, replacing the prior exhibit-specific name. See resolved decision 3 below.                                                                                                                                             |
+| electron-builder  | optional `peerDependency`, imported dynamically in `build()`                                          | Build-only; must not bloat a runtime install.                                                                                                                                                                                              |
+| Public entry name | `launch(config)`                                                                                      | Domain-neutral name, replacing the prior installation-domain-specific name. See resolved decision 3 below.                                                                                                                                 |
 
 ## Deviations from the original six-phase plan
 
@@ -103,7 +103,7 @@ Match the house conventions used by sibling repos in the same parent folder. `.p
 `src/config/schema.ts` — zod schemas, JSON-primitives only (I4). Types inferred into `src/config/types.ts`.
 
 ```
-ExhibitConfig {
+ShellConfig {
   appId: string (reverse-dns pattern)
   productName: string
   version?: string
@@ -136,7 +136,7 @@ There is **no** `shell` field and **no** `getBounds` callback — `bounds` is pl
 
 ### T1.4 — Config validation
 
-`src/config/validate.ts`: `validateConfig(input): ExhibitConfig` throwing `ConfigError` whose issues carry dotted field paths (`windows[1].target.kind`) (I7). Never exits, never warns-and-continues, never returns a partial config.
+`src/config/validate.ts`: `validateConfig(input): ShellConfig` throwing `ConfigError` whose issues carry dotted field paths (`windows[1].target.kind`) (I7). Never exits, never warns-and-continues, never returns a partial config.
 **Verify:** tests for a typo'd enum, a missing required field, a duplicate window id, and a bad `appId` — each asserting the exact field path string.
 
 ### T1.5 — Deployment override layering
@@ -322,16 +322,16 @@ Subscribe `screen.on('display-added'|'display-removed'|'display-metrics-changed'
 
 ## Phase 5 — Build, CLI, provisioning hand-off
 
-| ID   | Task                                           | Status |
-| ---- | ---------------------------------------------- | ------ |
-| T5.1 | `buildExhibit()` via electron-builder Node API | todo   |
-| T5.2 | Launch manifest (versioned)                    | todo   |
-| T5.3 | `startDev()` / `startProduction()`             | todo   |
-| T5.4 | `runDoctor()` diagnostics                      | todo   |
-| T5.5 | CLI bin                                        | todo   |
-| T5.6 | `init` scaffolder                              | todo   |
+| ID   | Task                                    | Status |
+| ---- | --------------------------------------- | ------ |
+| T5.1 | `build()` via electron-builder Node API | todo   |
+| T5.2 | Launch manifest (versioned)             | todo   |
+| T5.3 | `startDev()` / `startProduction()`      | todo   |
+| T5.4 | `runDoctor()` diagnostics               | todo   |
+| T5.5 | CLI bin                                 | todo   |
+| T5.6 | `init` scaffolder                       | todo   |
 
-### T5.1 — `buildExhibit()`
+### T5.1 — `build()`
 
 `src/build/build.ts`: compose the electron-builder config **in memory** and call its programmatic Node API (requirement 10) — no generated/committed JSON config inside the package. All output paths derive from the caller's `projectRoot`, never from `packageRoot` (I1 — the old code wrote build output into its own dependency folder). `electron-builder` imported dynamically with a clear error if absent. Throws, never exits (I6).
 **Verify:** run against the Phase 6 example; assert artifacts land under the example's own `dist`/`release` and that nothing was written inside `node_modules/eggshell`.
@@ -363,7 +363,7 @@ Scaffold a consumer project: `eggshell.config.ts`, an Electron main calling `lau
 
 ---
 
-## Phase 6 — Example exhibit & smoke harness
+## Phase 6 — Example kiosk & smoke harness
 
 | ID   | Task                                | Status |
 | ---- | ----------------------------------- | ------ |
@@ -375,7 +375,7 @@ Scaffold a consumer project: `eggshell.config.ts`, an Electron main calling `lau
 
 ### T6.1 — Example skeleton
 
-`examples/basic-exhibit/` — its own `package.json` depending on `eggshell` via `file:../..`, its own Electron main, local static pages (no network dependency). Proves the package works as a consumer sees it, including that no path is discovered by walking up (I1).
+`examples/basic-kiosk/` — its own `package.json` depending on `eggshell` via `file:../..`, its own Electron main, local static pages (no network dependency). Proves the package works as a consumer sees it, including that no path is discovered by walking up (I1).
 **Verify:** `npm run dev` in the example opens a window.
 
 ### T6.2 — Multi-window + touch role
@@ -408,7 +408,7 @@ Tracked in the lead architect's report; summarised here.
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Package name / npm scope — `eggshell` is likely taken on the public registry                                                                                                           | Keep `eggshell` locally; plan a scope (`@<org>/eggshell`) before any publish                                                                                                                                                                |
 | 2   | License                                                                                                                                                                                | MIT unless the venue work requires otherwise; currently unset                                                                                                                                                                               |
-| 3   | Prior exhibit-specific entry-point name vs a domain-neutral name                                                                                                                       | **Resolved:** renamed to `launch`; "exhibit" is installation-domain vocabulary in a package sold as generic                                                                                                                                 |
+| 3   | Prior installation-domain-specific entry-point name vs a domain-neutral name                                                                                                           | **Resolved:** renamed to `launch`; the old name was installation-domain vocabulary in a package sold as generic                                                                                                                             |
 | 4   | Soak: subpath export vs separate package                                                                                                                                               | Subpath now + a documented electron-builder exclusion; separate package only if the exclusion proves unreliable                                                                                                                             |
 | 5   | Windows touch detection mechanism                                                                                                                                                      | Behind `TouchProbe`, so the choice is deferrable and swappable                                                                                                                                                                              |
 | 6   | Schema defaults invented where the brief was silent: `window.kiosk: true`, `window.showWhenReady: true`, `window.fallback: 'primary'`, plus the supervisor/restart/touchProbe numerics | Reasonable but arbitrary, and now load-bearing behaviour. Worth a deliberate sign-off rather than inheritance by default                                                                                                                    |
@@ -418,25 +418,25 @@ Tracked in the lead architect's report; summarised here.
 | 10  | Ship the Windows touch probe at all? Post-T2.12 it can only break a tie when Electron reports `'unknown'`, and its ids are unverified WMI ordinals                                     | Recommend removing or keeping permanently default-off. A wrong answer fails silently (window on the wrong monitor); the honest `false` fails visibly via `role-unmatched`. It is already `enabled: false` by default, so this is not urgent |
 | 11  | Grandchildren of a process that exits within `graceMs` are not swept and can keep holding ports                                                                                        | The real fix is a Windows job object with kill-on-close, which needs a native dependency. Decide whether that dependency is acceptable, or accept detection-only via the port pre-check and `doctor`                                        |
 | 12  | Main→renderer push primitive for plugins (`windows.send`) is deliberately absent; `status` is pull-only                                                                                | Additive, so safe to defer. Design it against the offline overlay's real requirement in Phase 4 rather than guessing the shape now                                                                                                          |
-| 13  | Naming consistency: `launch()` takes an `ExhibitConfig` and sits beside `buildExhibit()`/`loadExhibitConfig()`                                                                         | Only the entry point was approved for renaming. Decide whether `Exhibit` is the right domain noun before Phase 3 builds more API on it — cheap now, expensive later                                                                         |
+| 13  | Naming consistency: `launch()` takes a `ShellConfig` and sits beside `build()`/`loadShellConfig()`                                                                                     | **Resolved:** `ShellConfig`. Pairs with the already-established `ShellRoots`/`ShellContext`/`ShellPlugin` and the `src/shell/` directory; `KioskConfig` was rejected because `kiosk` is already a boolean field on `WindowConfig`           |
 
 ## Progress log
 
-| Commit    | Scope                                                                                   | Verified by                                                                                                                                                                                                                                   |
-| --------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `3891c51` | T0.1, T0.3, T0.4 — toolchain, ARCHITECTURE.md, formatting conventions                   | `typecheck`, `build`, `test`, `format:check` all exit 0; typescript-eslint parser loads under the pinned TS 6.x                                                                                                                               |
-| `30ffd96` | T0.2 — eslint invariant enforcement                                                     | all 10 invariant rules verified firing against on-disk fixtures; both intended exemptions (`process.exit` in `src/cli/bin.ts`, `process.cwd()` in `src/cli/**`) verified silent; `import-x/no-cycle` verified firing on a real two-file cycle |
-| `d1cda71` | T1.1, T1.3, T1.6 — errors, config schema, logging seam                                  | 50 tests; I4 JSON round-trip on a maximal fixture; schema rejects function values                                                                                                                                                             |
-| `ec08f9a` | T1.2, T1.4 — explicit path roots, config validation                                     | 83 tests; containment rejects `../` escapes and sibling-directory false positives; field paths asserted exactly                                                                                                                               |
-| `9af7835` | T1.5, T2.1 — deployment overrides, topology signature                                   | 113 tests; array-replace and prototype-pollution guards; `colorDepth`/`displayFrequency` exclusion regression tests                                                                                                                           |
-| `1ca15d7` | T2.2, T1.7 — pure layout resolver, public exports map                                   | 141 tests; pure-zone lint proven to reject `node:fs` and `async` in `resolve.ts`; all 8 problem codes emitted, none dead                                                                                                                      |
-| `6f93015` | Owner decisions — MIT license, `eggshell` unscoped/private, `launchExhibit` → `launch`  | rename verified 0 remaining hits; package fields asserted                                                                                                                                                                                     |
-| `a53d13a` | T2.4 — window supervisor                                                                | 179 tests; flap regression proven to fail against the pre-fix implementation                                                                                                                                                                  |
-| `923f9dc` | T2.5, T2.6, T2.11 — port probe, safe spawn, permission policy                           | 226 tests; substring-match and lookalike-origin regressions; env-inheritance test                                                                                                                                                             |
-| `a6d49ff` | I2 lint hardening                                                                       | two proven bypasses (aliased import, options-via-variable) now blocked, verified in a zone-overridden directory too                                                                                                                           |
-| `e598f6d` | T2.7 — readiness probes                                                                 | 240 tests; abort and timeout paths assert zero pending timers                                                                                                                                                                                 |
-| `f648f2a` | T2.3, T2.8, T2.10, T2.12 — touch probe, process supervisor, plugin seam, precedence fix | 303 tests; I5 verified by grep as well as lint; `dist/__testing__` absent                                                                                                                                                                     |
-| `bc0a30b` | T2.9 — graceful shutdown, completing Phase 2                                            | 315 tests; shutdown-does-not-trigger-restart-policy test; suite still ~1.5s, so no real timers                                                                                                                                                |
+| Commit    | Scope                                                                                                  | Verified by                                                                                                                                                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `3891c51` | T0.1, T0.3, T0.4 — toolchain, ARCHITECTURE.md, formatting conventions                                  | `typecheck`, `build`, `test`, `format:check` all exit 0; typescript-eslint parser loads under the pinned TS 6.x                                                                                                                               |
+| `30ffd96` | T0.2 — eslint invariant enforcement                                                                    | all 10 invariant rules verified firing against on-disk fixtures; both intended exemptions (`process.exit` in `src/cli/bin.ts`, `process.cwd()` in `src/cli/**`) verified silent; `import-x/no-cycle` verified firing on a real two-file cycle |
+| `d1cda71` | T1.1, T1.3, T1.6 — errors, config schema, logging seam                                                 | 50 tests; I4 JSON round-trip on a maximal fixture; schema rejects function values                                                                                                                                                             |
+| `ec08f9a` | T1.2, T1.4 — explicit path roots, config validation                                                    | 83 tests; containment rejects `../` escapes and sibling-directory false positives; field paths asserted exactly                                                                                                                               |
+| `9af7835` | T1.5, T2.1 — deployment overrides, topology signature                                                  | 113 tests; array-replace and prototype-pollution guards; `colorDepth`/`displayFrequency` exclusion regression tests                                                                                                                           |
+| `1ca15d7` | T2.2, T1.7 — pure layout resolver, public exports map                                                  | 141 tests; pure-zone lint proven to reject `node:fs` and `async` in `resolve.ts`; all 8 problem codes emitted, none dead                                                                                                                      |
+| `6f93015` | Owner decisions — MIT license, `eggshell` unscoped/private, old domain-specific launch name → `launch` | rename verified 0 remaining hits; package fields asserted                                                                                                                                                                                     |
+| `a53d13a` | T2.4 — window supervisor                                                                               | 179 tests; flap regression proven to fail against the pre-fix implementation                                                                                                                                                                  |
+| `923f9dc` | T2.5, T2.6, T2.11 — port probe, safe spawn, permission policy                                          | 226 tests; substring-match and lookalike-origin regressions; env-inheritance test                                                                                                                                                             |
+| `a6d49ff` | I2 lint hardening                                                                                      | two proven bypasses (aliased import, options-via-variable) now blocked, verified in a zone-overridden directory too                                                                                                                           |
+| `e598f6d` | T2.7 — readiness probes                                                                                | 240 tests; abort and timeout paths assert zero pending timers                                                                                                                                                                                 |
+| `f648f2a` | T2.3, T2.8, T2.10, T2.12 — touch probe, process supervisor, plugin seam, precedence fix                | 303 tests; I5 verified by grep as well as lint; `dist/__testing__` absent                                                                                                                                                                     |
+| `bc0a30b` | T2.9 — graceful shutdown, completing Phase 2                                                           | 315 tests; shutdown-does-not-trigger-restart-policy test; suite still ~1.5s, so no real timers                                                                                                                                                |
 
 ### Notes carried forward
 

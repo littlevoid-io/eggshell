@@ -111,7 +111,7 @@ const DEFAULT_TIMEOUT_MS = 5_000;
  * burst of resolves (e.g. several windows resolving in the same tick) never
  * spawns more than one extra PowerShell process per minute, and short enough
  * that a technician who plugs in a touch monitor and waits a moment sees it
- * picked up without restarting the exhibit.
+ * picked up without restarting the app.
  */
 const DEFAULT_CACHE_TTL_MS = 60_000;
 

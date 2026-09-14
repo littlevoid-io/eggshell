@@ -222,13 +222,13 @@ function buildPlacement(
 /**
  * Two or more windows resolving to the same display is a legitimate
  * installation choice (e.g. two overlapping widgets on one monitor), so
- * this is a `warning`, never an `error` — it must not stop the exhibit from
+ * this is a `warning`, never an `error` — it must not stop the shell from
  * starting. Reported once per extra window, naming the window that already
  * claimed the display.
  *
  * `spanAll` placements (`displayId: null`) are deliberately exempt: two
  * `spanAll` layers (e.g. a background layer plus a transparent overlay) is
- * a normal exhibit pattern, not a collision, since neither belongs to "a
+ * a normal layout pattern, not a collision, since neither belongs to "a
  * display" in the first place. Do not remove this exemption to make
  * `duplicate-target` "more thorough" — it would make that pattern warn on
  * every resolve.

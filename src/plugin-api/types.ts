@@ -105,7 +105,7 @@ export interface ShellContext {
    * This plugin's own validated slice of `config.plugins[id]`, typed
    * `unknown` because core does not know any plugin's schema — the plugin
    * validates it with its own (e.g. its own zod schema). This is never the
-   * full `ExhibitConfig`: handing over the whole config would let a plugin
+   * full `ShellConfig`: handing over the whole config would let a plugin
    * read and silently depend on unrelated settings, which is exactly what
    * this seam exists to prevent.
    */

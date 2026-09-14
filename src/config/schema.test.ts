@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { exhibitConfigSchema } from './schema.js';
-import type { ExhibitConfig } from './types.js';
+import { shellConfigSchema } from './schema.js';
+import type { ShellConfig } from './types.js';
 
 /**
  * Maximal fixture: every top-level field, every optional field, and every
@@ -9,8 +9,8 @@ import type { ExhibitConfig } from './types.js';
  */
 function buildMaximalConfig() {
   return {
-    appId: 'com.example.my-exhibit',
-    productName: 'Example Exhibit',
+    appId: 'com.example.my-kiosk',
+    productName: 'Example Kiosk',
     version: '1.2.3',
     windows: [
       {
@@ -118,14 +118,14 @@ function buildMaximalConfig() {
 function minimalConfig() {
   return {
     appId: 'com.example.minimal',
-    productName: 'Minimal Exhibit',
+    productName: 'Minimal Kiosk',
     windows: [{ id: 'main', url: 'http://localhost:3000', target: { kind: 'primary' } }],
   };
 }
 
-describe('exhibitConfigSchema — I4 JSON round-trip', () => {
+describe('shellConfigSchema — I4 JSON round-trip', () => {
   it('parses a maximal fixture and survives JSON.parse(JSON.stringify(...)) unchanged', () => {
-    const parsed = exhibitConfigSchema.parse(buildMaximalConfig());
+    const parsed = shellConfigSchema.parse(buildMaximalConfig());
     const roundTripped: unknown = JSON.parse(JSON.stringify(parsed));
     expect(roundTripped).toEqual(parsed);
   });
@@ -138,25 +138,25 @@ describe('exhibitConfigSchema — I4 JSON round-trip', () => {
       bounds: () => ({ x: 0, y: 0, width: 100, height: 100 }),
     };
     const config = { ...minimalConfig(), windows: [corruptedWindow] };
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
   });
 
   it('rejects a config carrying an unrecognized function-valued field', () => {
     const config: Record<string, unknown> = { ...minimalConfig(), getBounds: () => ({}) };
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
   });
 });
 
-describe('exhibitConfigSchema — minimal config and defaults', () => {
+describe('shellConfigSchema — minimal config and defaults', () => {
   it('parses a minimal valid config', () => {
-    const result = exhibitConfigSchema.safeParse(minimalConfig());
+    const result = shellConfigSchema.safeParse(minimalConfig());
     expect(result.success).toBe(true);
   });
 
   it('applies schema-declared defaults', () => {
-    const parsed: ExhibitConfig = exhibitConfigSchema.parse(minimalConfig());
+    const parsed: ShellConfig = shellConfigSchema.parse(minimalConfig());
     expect(parsed.processes).toEqual([]);
     expect(parsed.permissions).toEqual({ default: 'deny', allow: [] });
     expect(parsed.logging).toEqual({ level: 'info' });
@@ -180,7 +180,7 @@ describe('exhibitConfigSchema — minimal config and defaults', () => {
   });
 });
 
-describe('exhibitConfigSchema — duplicate ids', () => {
+describe('shellConfigSchema — duplicate ids', () => {
   it('rejects duplicate window ids, pointing the issue path at the array index', () => {
     const config = minimalConfig();
     config.windows.push({
@@ -188,7 +188,7 @@ describe('exhibitConfigSchema — duplicate ids', () => {
       url: 'http://localhost:3000/2',
       target: { kind: 'primary' },
     });
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues).toContainEqual(
@@ -205,7 +205,7 @@ describe('exhibitConfigSchema — duplicate ids', () => {
         { id: 'proc', command: '/bin/b', phase: 'always' },
       ],
     };
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues).toContainEqual(
@@ -215,10 +215,10 @@ describe('exhibitConfigSchema — duplicate ids', () => {
   });
 });
 
-describe('exhibitConfigSchema — appId validation', () => {
+describe('shellConfigSchema — appId validation', () => {
   it('rejects a bad appId with a helpful message', () => {
     const config = { ...minimalConfig(), appId: 'not_valid appId!' };
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
     if (!result.success) {
       const [issue] = result.error.issues;
@@ -227,7 +227,7 @@ describe('exhibitConfigSchema — appId validation', () => {
   });
 });
 
-describe('exhibitConfigSchema — DisplayTarget', () => {
+describe('shellConfigSchema — DisplayTarget', () => {
   it('rejects an unknown kind with the issue path on "kind"', () => {
     const corruptedWindow: Record<string, unknown> = {
       id: 'main',
@@ -235,7 +235,7 @@ describe('exhibitConfigSchema — DisplayTarget', () => {
       target: { kind: 'spanning' },
     };
     const config = { ...minimalConfig(), windows: [corruptedWindow] };
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues).toContainEqual(
@@ -245,18 +245,18 @@ describe('exhibitConfigSchema — DisplayTarget', () => {
   });
 });
 
-describe('exhibitConfigSchema — permissions', () => {
+describe('shellConfigSchema — permissions', () => {
   it('rejects a permissions.default other than "deny"', () => {
     const config = {
       ...minimalConfig(),
       permissions: { default: 'allow', allow: [] },
     };
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
   });
 });
 
-describe('exhibitConfigSchema — numeric bounds', () => {
+describe('shellConfigSchema — numeric bounds', () => {
   it('rejects an out-of-range port', () => {
     const config = {
       ...minimalConfig(),
@@ -269,7 +269,7 @@ describe('exhibitConfigSchema — numeric bounds', () => {
         },
       ],
     };
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
   });
 
@@ -285,12 +285,12 @@ describe('exhibitConfigSchema — numeric bounds', () => {
         },
       ],
     };
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
   });
 });
 
-describe('exhibitConfigSchema — argv shape (shell-injection guard)', () => {
+describe('shellConfigSchema — argv shape (shell-injection guard)', () => {
   it('rejects args given as a joined string instead of an array', () => {
     const corruptedProcess: Record<string, unknown> = {
       id: 'proc',
@@ -299,7 +299,7 @@ describe('exhibitConfigSchema — argv shape (shell-injection guard)', () => {
       phase: 'always',
     };
     const config = { ...minimalConfig(), processes: [corruptedProcess] };
-    const result = exhibitConfigSchema.safeParse(config);
+    const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
   });
 });

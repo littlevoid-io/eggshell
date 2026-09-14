@@ -16,13 +16,13 @@ describe('index (public surface)', () => {
 
   it('exports the expected config helpers', () => {
     expect(barrel.validateConfig).toBeTypeOf('function');
-    expect(barrel.loadExhibitConfig).toBeTypeOf('function');
+    expect(barrel.loadShellConfig).toBeTypeOf('function');
     expect(barrel.formatIssuePath).toBeTypeOf('function');
     expect(barrel.DEFAULT_OVERRIDE_FILENAME).toBeTypeOf('string');
   });
 
   it('does not export the internal zod schema values (validation library stays swappable)', () => {
-    expect(barrel).not.toHaveProperty('exhibitConfigSchema');
+    expect(barrel).not.toHaveProperty('shellConfigSchema');
     expect(barrel).not.toHaveProperty('boundsSchema');
   });
 

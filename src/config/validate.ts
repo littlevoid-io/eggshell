@@ -8,8 +8,8 @@
 import type { z } from 'zod';
 
 import { ConfigError, type ConfigIssue } from '../errors.js';
-import { exhibitConfigSchema } from './schema.js';
-import type { ExhibitConfig } from './types.js';
+import { shellConfigSchema } from './schema.js';
+import type { ShellConfig } from './types.js';
 
 /**
  * Renders a zod issue path the way a developer would write the access
@@ -66,15 +66,15 @@ function toConfigIssues(zodError: z.ZodError): ConfigIssue[] {
 }
 
 /**
- * Validates and fully parses an `ExhibitConfig`, applying every
+ * Validates and fully parses a `ShellConfig`, applying every
  * schema-declared default. Never returns a partial config, never warns and
  * continues, never calls `process.exit` (I6) — it only returns a complete,
  * valid config or throws `ConfigError` naming every offending field path.
  */
-export function validateConfig(input: unknown): ExhibitConfig {
-  let result: z.ZodSafeParseResult<ExhibitConfig>;
+export function validateConfig(input: unknown): ShellConfig {
+  let result: z.ZodSafeParseResult<ShellConfig>;
   try {
-    result = exhibitConfigSchema.safeParse(input);
+    result = shellConfigSchema.safeParse(input);
   } catch (cause) {
     throw new ConfigError(
       'Configuration validation failed: an unexpected error occurred while validating',

@@ -10,18 +10,18 @@
  * the ordering guarantee `teardownAll` relies on (exact reverse of a known,
  * fully-settled order). Nothing here needs setup calls to run independently
  * of each other's timing, so concurrency would only trade that determinism
- * for speed the exhibit start-up path does not need.
+ * for speed the shell start-up path does not need.
  *
  * A throwing/rejecting `setup` or `teardown` is isolated: logged at `error`,
  * recorded in `getFailures()`, and the rest continue. One broken optional
- * overlay must never stop the exhibit from starting or shutting down.
+ * overlay must never stop the shell from starting or shutting down.
  */
 
 import { PluginError } from '../errors.js';
 import { createChildLogger, noopLogger } from '../logging/logger.js';
 import type { Logger } from '../logging/logger.js';
 import type { ShellRoots } from '../paths/roots.js';
-import type { ExhibitConfig } from '../config/types.js';
+import type { ShellConfig } from '../config/types.js';
 import { createShellContext } from './context.js';
 import { NamespacedHandlers, StatusStore } from './registries.js';
 import type {
@@ -43,15 +43,15 @@ const emptyWindowRegistry: WindowRegistry = {
 export interface PluginRegistryOptions {
   roots: ShellRoots;
   logger?: Logger;
-  /** `config.plugins` from the validated `ExhibitConfig` — each plugin sees only its own `[id]` slice. */
-  pluginConfig?: ExhibitConfig['plugins'];
+  /** `config.plugins` from the validated `ShellConfig` — each plugin sees only its own `[id]` slice. */
+  pluginConfig?: ShellConfig['plugins'];
   windows?: WindowRegistry;
 }
 
 export class PluginRegistry {
   private readonly roots: ShellRoots;
   private readonly logger: Logger;
-  private readonly pluginConfig: ExhibitConfig['plugins'] | undefined;
+  private readonly pluginConfig: ShellConfig['plugins'] | undefined;
   private readonly windows: WindowRegistry;
 
   private readonly plugins = new Map<string, ShellPlugin>();

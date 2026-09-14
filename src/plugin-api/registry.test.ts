@@ -260,7 +260,7 @@ describe('PluginRegistry config isolation', () => {
     expect(seen['offline']).toBeUndefined();
   });
 
-  it('cannot reach the full ExhibitConfig through the context it receives', async () => {
+  it('cannot reach the full ShellConfig through the context it receives', async () => {
     const registry = makeRegistry({
       pluginConfig: { dashboard: { port: 4000 } },
     });
