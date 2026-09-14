@@ -427,21 +427,27 @@ function ruleMatches(
 }
 
 /**
- * Touch capability precedence: the injected `touchDisplayIds` (T2.3's probe
- * result, delivered as data — never fetched here) wins whenever it is
- * present, because it is measured directly and is more reliable on Windows
- * than Electron's self-reported `touchSupport`. Only when no probe ran at
- * all (`touchDisplayIds === undefined`) does this fall back to
- * `display.touchSupport === 'available'`.
+ * Touch capability precedence: `display.touchSupport` is Electron's own
+ * per-display signal, scoped to this exact `Display.id` — it wins whenever
+ * it expresses an opinion (`'available'` or `'unavailable'`), in either
+ * direction. The injected `touchDisplayIds` (T2.3's probe result, delivered
+ * as data — never fetched here) is consulted only when `touchSupport` is
+ * `'unknown'`, and even then only as a best effort: on Windows those ids are
+ * WMI/CIM enumeration-order ordinals for touch digitizers, not verified
+ * Electron display ids (see `src/layout/probes/windows-touch.ts`'s module
+ * doc comment for why no such correlation is possible on that platform), so
+ * they must never override a positive-or-negative answer Electron already
+ * gave. With no probe result at all (`touchDisplayIds === undefined`) and an
+ * `'unknown'` `touchSupport`, this defaults to not touch-capable.
  */
 function isTouchCapable(
   display: DisplaySnapshot,
   touchDisplayIds: readonly number[] | undefined
 ): boolean {
-  if (touchDisplayIds !== undefined) {
-    return touchDisplayIds.includes(display.id);
+  if (display.touchSupport !== 'unknown') {
+    return display.touchSupport === 'available';
   }
-  return display.touchSupport === 'available';
+  return touchDisplayIds?.includes(display.id) ?? false;
 }
 
 // ---------------------------------------------------------------------------

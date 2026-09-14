@@ -11,3 +11,12 @@ export type {
 export { LINE_REPLAY_BUFFER_SIZE } from './types.js';
 export { waitForReadiness } from './readiness.js';
 export type { ReadinessProbe, ReadinessContext } from './readiness.js';
+export { createProcessSupervisor } from './supervisor.js';
+export type {
+  ProcessSupervisor,
+  ProcessSupervisorOptions,
+  ProcessStatus,
+  ProcessState,
+  SupervisorPhase,
+  SpawnFn,
+} from './supervisor.js';

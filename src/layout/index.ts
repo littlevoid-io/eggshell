@@ -15,3 +15,11 @@ export type {
   WindowSupervisor,
   WindowSupervisorOptions,
 } from './supervisor.js';
+export type { TouchProbe } from './probes/types.js';
+export { noopTouchProbe } from './probes/noop.js';
+export { createWindowsTouchProbe } from './probes/windows-touch.js';
+export type {
+  ExecFn,
+  WindowsTouchProbe,
+  WindowsTouchProbeOptions,
+} from './probes/windows-touch.js';

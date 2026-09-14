@@ -465,6 +465,165 @@ describe('resolveLayout', () => {
     ]);
   });
 
+  describe('touch capability precedence (T2.12)', () => {
+    it('touchSupport:"available" is touch-capable even when touchDisplayIds omits the display (probe cannot veto a positive)', () => {
+      const displays = [
+        buildDisplay({ id: 1, primary: true, label: 'Main' }),
+        buildDisplay({ id: 2, label: 'Touch', touchSupport: 'available' }),
+      ];
+      const roles: Record<string, DisplayRoleRule> = { touch: { touchCapable: true } };
+      const windows = [buildWindow({ id: 'kiosk', target: { kind: 'role', role: 'touch' } })];
+
+      // The probe found no touch digitizers at all — Electron's positive
+      // answer for display 2 must still win.
+      const result = resolveLayout({ displays, windows, roles, touchDisplayIds: [] });
+
+      expect(result.problems).toEqual([]);
+      expect(result.placements[0]?.displayId).toBe(2);
+    });
+
+    it(
+      'touchSupport:"unavailable" with the display\'s id present in touchDisplayIds is NOT ' +
+        'touch-capable (regression: probe ids are unverified WMI enumeration ordinals, not ' +
+        "verified Electron display ids, and must never override Electron's own negative answer)",
+      () => {
+        const displays = [
+          buildDisplay({ id: 1, primary: true, label: 'Main' }),
+          buildDisplay({ id: 2, label: 'NotTouch', touchSupport: 'unavailable' }),
+        ];
+        const roles: Record<string, DisplayRoleRule> = { touch: { touchCapable: true } };
+        const target: DisplayTarget = { kind: 'role', role: 'touch' };
+        const windows = [buildWindow({ id: 'kiosk', target, fallback: 'primary' })];
+
+        // The probe's ordinal happens to name display 2, but touchSupport says
+        // it is not touch-capable, so no display matches the role.
+        const result = resolveLayout({ displays, windows, roles, touchDisplayIds: [2] });
+
+        expect(result.problems).toEqual([
+          {
+            windowId: 'kiosk',
+            code: 'role-unmatched',
+            severity: 'warning',
+            message: expect.any(String) as string,
+            fieldPath: 'windows[0].target',
+          },
+        ]);
+        expect(result.placements).toEqual([
+          {
+            windowId: 'kiosk',
+            displayId: 1,
+            bounds: displays[0]!.bounds,
+            mode: 'kiosk',
+            degradedFrom: target,
+          },
+        ]);
+      }
+    );
+
+    it('touchSupport:"unknown" with the id present in touchDisplayIds is touch-capable (the probe\'s legitimate use)', () => {
+      const displays = [
+        buildDisplay({ id: 1, primary: true, label: 'Main' }),
+        buildDisplay({ id: 2, label: 'Touch' }), // touchSupport defaults to 'unknown'
+      ];
+      const roles: Record<string, DisplayRoleRule> = { touch: { touchCapable: true } };
+      const windows = [buildWindow({ id: 'kiosk', target: { kind: 'role', role: 'touch' } })];
+
+      const result = resolveLayout({ displays, windows, roles, touchDisplayIds: [2] });
+
+      expect(result.problems).toEqual([]);
+      expect(result.placements[0]?.displayId).toBe(2);
+    });
+
+    it('touchSupport:"unknown" with the id absent from touchDisplayIds is not touch-capable', () => {
+      const displays = [
+        buildDisplay({ id: 1, primary: true, label: 'Main' }),
+        buildDisplay({ id: 2, label: 'Other' }), // touchSupport defaults to 'unknown'
+      ];
+      const roles: Record<string, DisplayRoleRule> = { touch: { touchCapable: true } };
+      const target: DisplayTarget = { kind: 'role', role: 'touch' };
+      const windows = [buildWindow({ id: 'kiosk', target, fallback: 'primary' })];
+
+      const result = resolveLayout({ displays, windows, roles, touchDisplayIds: [99] });
+
+      expect(result.problems).toEqual([
+        {
+          windowId: 'kiosk',
+          code: 'role-unmatched',
+          severity: 'warning',
+          message: expect.any(String) as string,
+          fieldPath: 'windows[0].target',
+        },
+      ]);
+      expect(result.placements).toEqual([
+        {
+          windowId: 'kiosk',
+          displayId: 1,
+          bounds: displays[0]!.bounds,
+          mode: 'kiosk',
+          degradedFrom: target,
+        },
+      ]);
+    });
+
+    it('touchSupport:"unknown" with touchDisplayIds undefined (no probe ran) is not touch-capable, and resolution succeeds via fallback rather than throwing', () => {
+      const displays = [
+        buildDisplay({ id: 1, primary: true, label: 'Main' }),
+        buildDisplay({ id: 2, label: 'Other' }), // touchSupport defaults to 'unknown'
+      ];
+      const roles: Record<string, DisplayRoleRule> = { touch: { touchCapable: true } };
+      const target: DisplayTarget = { kind: 'role', role: 'touch' };
+      const windows = [buildWindow({ id: 'kiosk', target, fallback: 'primary' })];
+
+      expect(() => resolveLayout({ displays, windows, roles })).not.toThrow();
+      const result = resolveLayout({ displays, windows, roles });
+
+      expect(result.problems).toEqual([
+        {
+          windowId: 'kiosk',
+          code: 'role-unmatched',
+          severity: 'warning',
+          message: expect.any(String) as string,
+          fieldPath: 'windows[0].target',
+        },
+      ]);
+      expect(result.placements).toEqual([
+        {
+          windowId: 'kiosk',
+          displayId: 1,
+          bounds: displays[0]!.bounds,
+          mode: 'kiosk',
+          degradedFrom: target,
+        },
+      ]);
+    });
+
+    it('end-to-end: a touchCapable:true role lands on the display touchSupport identifies, not the one a misaligned probe ordinal claims', () => {
+      const wrongOne = buildDisplay({
+        id: 1,
+        primary: true,
+        label: 'Wrong',
+        touchSupport: 'unavailable',
+      });
+      const rightOne = buildDisplay({
+        id: 2,
+        label: 'Right',
+        touchSupport: 'available',
+      });
+      const displays = [wrongOne, rightOne];
+      const roles: Record<string, DisplayRoleRule> = { touch: { touchCapable: true } };
+      const windows = [buildWindow({ id: 'kiosk', target: { kind: 'role', role: 'touch' } })];
+
+      // The probe's WMI ordinal names display 1 as touch-capable and omits
+      // display 2 — the opposite of what Electron's own touchSupport reports.
+      const result = resolveLayout({ displays, windows, roles, touchDisplayIds: [1] });
+
+      expect(result.problems).toEqual([]);
+      expect(result.placements).toEqual([
+        { windowId: 'kiosk', displayId: 2, bounds: rightOne.bounds, mode: 'kiosk' },
+      ]);
+    });
+  });
+
   it('is pure: the same input called twice yields deeply-equal results, and inputs are not mutated', () => {
     const displays = [
       buildDisplay({ id: 3, label: 'C' }),
