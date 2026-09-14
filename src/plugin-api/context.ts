@@ -11,20 +11,22 @@ import type { Logger } from '../logging/logger.js';
 import type { ShellRoots } from '../paths/roots.js';
 import type { ShellContext, WindowRegistry, IpcHandler, CommandHandler } from './types.js';
 
-export interface CreateShellContextOptions {
+export interface CreateShellContextOptions<TNative = unknown> {
   pluginId: string;
   roots: ShellRoots;
   logger: Logger;
   /** This plugin's own `config.plugins[id]` slice — see `ShellContext.config`. */
   config: unknown;
-  windows: WindowRegistry;
+  windows: WindowRegistry<TNative>;
   onRegisterIpcHandler(channel: string, handler: IpcHandler): void;
   onRegisterCommand(name: string, handler: CommandHandler): void;
   onPublishStatus(value: unknown): void;
   onReadStatus(): unknown;
 }
 
-export function createShellContext(options: CreateShellContextOptions): ShellContext {
+export function createShellContext<TNative = unknown>(
+  options: CreateShellContextOptions<TNative>
+): ShellContext<TNative> {
   return {
     windows: options.windows,
     ipc: { handle: options.onRegisterIpcHandler },

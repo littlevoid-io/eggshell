@@ -328,7 +328,7 @@ The lesson for Phases 4-6: integration tasks are where cross-module defects surf
 
 | ID   | Task                                      | Status |
 | ---- | ----------------------------------------- | ------ |
-| T4.1 | Offline-network overlay                   | todo   |
+| T4.1 | Offline-network overlay                   | done   |
 | T4.2 | Remote dashboard (localhost-only default) | todo   |
 | T4.3 | Companion QR/info overlay                 | todo   |
 | T4.4 | Soak-test fuzzer (dev-only)               | todo   |

@@ -281,11 +281,11 @@ export function createWindows(
  * function's concrete return type, so `native` is invisible at the type
  * level even though it is present at runtime.
  */
-export function createWindowRegistry(windows: readonly ManagedWindow[]): WindowRegistry {
+export function createWindowRegistry(windows: readonly ManagedWindow[]): WindowRegistry<BrowserWindow> {
   const byId = new Map<string, ManagedWindow>(windows.map(window => [window.id, window]));
 
   return {
-    get: (id: string): WindowHandle | undefined => byId.get(id),
-    list: (): readonly WindowHandle[] => windows,
+    get: (id: string): WindowHandle<BrowserWindow> | undefined => byId.get(id),
+    list: (): readonly WindowHandle<BrowserWindow>[] => windows,
   };
 }
