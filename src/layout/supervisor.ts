@@ -37,11 +37,11 @@
  *     happens, until forgotten by LRU eviction. A *different*,
  *     not-yet-given-up signature is free to proceed immediately — "given up"
  *     is a property of a topology, not of the whole supervisor.
- *   - **Tier 2 — global rolling-window ceiling.** The ledger alone is still
+ *   - **Tier 2 — global rolling-rate ceiling.** The ledger alone is still
  *     defeatable: a flap through more distinct signatures than the ledger's
  *     bound can hold evicts a given-up entry and "forgets" it. Tier 2 caps
- *     *total* attempts started within a trailing `attemptWindowMs` window at
- *     `maxAttemptsPerWindow`, independent of which signature each attempt
+ *     *total* attempts started within a trailing `globalRateWindowMs` at
+ *     `maxGlobalAttempts`, independent of which signature each attempt
  *     targeted. This is the actual backstop: it bounds total work
  *     unconditionally, so eviction in Tier 1 can never re-open an unbounded
  *     loop. Tripping it is a distinct `givenUpReason: 'rate'` (vs.
@@ -53,10 +53,16 @@
  * the supervisor re-arms only once the window has genuinely drained below
  * the ceiling. A continuous flap keeps the window full and stays given up;
  * real quiet (e.g. a one-off monitor unplug at opening) drains it within
- * `attemptWindowMs` and the supervisor recovers on its own. There is no
+ * `globalRateWindowMs` and the supervisor recovers on its own. There is no
  * separate cooldown timer — the same window is both the trip condition and
  * the re-arm condition. A per-topology (`'topology'`) give-up is unaffected
  * by this: it stays given up until forgotten by LRU eviction.
+ *
+ * `maxGlobalAttempts`/`globalRateWindowMs` deliberately match
+ * `src/shell/watchdog.ts`'s `maxGlobalReloads`/`globalRateWindowMs` names:
+ * both files implement the same two-tier (per-subject ledger + global
+ * rolling-rate ceiling) pattern, and "window" is reserved here for
+ * `BrowserWindow` — never for a span of time.
  */
 
 import type { Clock, TimerHandle } from '../clock.js';
@@ -78,10 +84,10 @@ export interface WindowSupervisorOptions {
   verifyDelayMs: number;
   /** Optional per-topology wall-clock deadline, measured from that topology's first attempt. */
   giveUpAfterMs?: number;
-  /** Global attempt-rate ceiling (Tier 2): at most this many attempts, of any topology, within `attemptWindowMs`. */
-  maxAttemptsPerWindow: number;
-  /** The trailing window `maxAttemptsPerWindow` is measured over. */
-  attemptWindowMs: number;
+  /** Global attempt-rate ceiling (Tier 2): at most this many attempts, of any topology, within `globalRateWindowMs`. */
+  maxGlobalAttempts: number;
+  /** The trailing window `maxGlobalAttempts` is measured over. */
+  globalRateWindowMs: number;
   logger?: Logger;
 }
 
@@ -119,8 +125,8 @@ interface SupervisorContext {
   readonly maxAttemptsPerTopology: number;
   readonly verifyDelayMs: number;
   readonly giveUpAfterMs: number | undefined;
-  readonly maxAttemptsPerWindow: number;
-  readonly attemptWindowMs: number;
+  readonly maxGlobalAttempts: number;
+  readonly globalRateWindowMs: number;
   readonly logger: Logger;
 
   state: SupervisorState;
@@ -134,7 +140,7 @@ interface SupervisorContext {
 
   /** Tier 1: bounded, LRU-ordered (oldest first) per-topology attempt ledger. */
   readonly ledger: Map<string, TopologyRecord>;
-  /** Tier 2: `clock.now()` of each attempt start still within `attemptWindowMs`, oldest first. */
+  /** Tier 2: `clock.now()` of each attempt start still within `globalRateWindowMs`, oldest first. */
   readonly attemptTimestamps: number[];
 
   /** Latest displays/signature seen while `scheduled` (debounce) or mid-cycle (`applying`/`verifying`). */
@@ -154,8 +160,8 @@ export function createWindowSupervisor(options: WindowSupervisorOptions): Window
     maxAttemptsPerTopology: options.maxAttemptsPerTopology,
     verifyDelayMs: options.verifyDelayMs,
     giveUpAfterMs: options.giveUpAfterMs,
-    maxAttemptsPerWindow: options.maxAttemptsPerWindow,
-    attemptWindowMs: options.attemptWindowMs,
+    maxGlobalAttempts: options.maxGlobalAttempts,
+    globalRateWindowMs: options.globalRateWindowMs,
     logger: options.logger ?? noopLogger,
     state: 'settled',
     givenUpReason: undefined,
@@ -232,7 +238,7 @@ function handleDisplaysChanged(ctx: SupervisorContext, displays: readonly Displa
  */
 function isStillRateLimited(ctx: SupervisorContext, signature: string): boolean {
   pruneAttemptWindow(ctx);
-  if (ctx.attemptTimestamps.length >= ctx.maxAttemptsPerWindow) {
+  if (ctx.attemptTimestamps.length >= ctx.maxGlobalAttempts) {
     ctx.logger.debug('window supervisor: dropping event while rate-limited', { signature });
     return true;
   }
@@ -270,7 +276,7 @@ function startCycle(ctx: SupervisorContext): void {
   ctx.pendingSignature = undefined;
 
   pruneAttemptWindow(ctx);
-  if (ctx.attemptTimestamps.length >= ctx.maxAttemptsPerWindow) {
+  if (ctx.attemptTimestamps.length >= ctx.maxGlobalAttempts) {
     giveUpGlobalRate(ctx, signature);
     return;
   }
@@ -433,8 +439,8 @@ function giveUpGlobalRate(ctx: SupervisorContext, signature: string): void {
   ctx.logger.error(
     'window supervisor: giving up globally — attempts are arriving faster than the rate ceiling allows (the display topology may be flapping)',
     {
-      maxAttemptsPerWindow: ctx.maxAttemptsPerWindow,
-      attemptWindowMs: ctx.attemptWindowMs,
+      maxGlobalAttempts: ctx.maxGlobalAttempts,
+      globalRateWindowMs: ctx.globalRateWindowMs,
       signature,
     }
   );
@@ -474,7 +480,7 @@ function evictOldestIfNeeded(ctx: SupervisorContext): void {
 // ---------------------------------------------------------------------------
 
 function pruneAttemptWindow(ctx: SupervisorContext): void {
-  const cutoff = ctx.clock.now() - ctx.attemptWindowMs;
+  const cutoff = ctx.clock.now() - ctx.globalRateWindowMs;
   while (ctx.attemptTimestamps.length > 0 && ctx.attemptTimestamps[0]! < cutoff) {
     ctx.attemptTimestamps.shift();
   }

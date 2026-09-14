@@ -100,13 +100,13 @@ describe('loadShellConfig — nested object merge', () => {
 
     const config = {
       ...minimalConfig(),
-      display: { supervisor: { maxAttempts: 3, verifyDelayMs: 750 } },
+      display: { supervisor: { maxAttemptsPerTopology: 3, verifyDelayMs: 750 } },
     };
 
     const result = loadShellConfig({ config, roots });
 
     expect(result.display.supervisor.debounceMs).toBe(999);
-    expect(result.display.supervisor.maxAttempts).toBe(3);
+    expect(result.display.supervisor.maxAttemptsPerTopology).toBe(3);
     expect(result.display.supervisor.verifyDelayMs).toBe(750);
   });
 });

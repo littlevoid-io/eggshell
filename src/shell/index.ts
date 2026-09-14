@@ -40,3 +40,10 @@ export type {
   SingleInstanceApp,
   SingleInstanceLockResult,
 } from './single-instance.js';
+
+export { createDisplayEventBridge } from './display-events.js';
+export type {
+  DisplayEventBridge,
+  DisplayEventBridgeOptions,
+  SupervisorTuning,
+} from './display-events.js';

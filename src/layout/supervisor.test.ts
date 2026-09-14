@@ -54,7 +54,7 @@ function createCapturingLogger(): { logger: Logger; entries: LogEntry[] } {
  * it is specifically testing Tier 2, so the two circuit breakers can be
  * exercised independently.
  */
-const UNBOUNDED_RATE_OPTIONS = { maxAttemptsPerWindow: 1000, attemptWindowMs: 1_000_000 } as const;
+const UNBOUNDED_RATE_OPTIONS = { maxGlobalAttempts: 1000, globalRateWindowMs: 1_000_000 } as const;
 
 /**
  * `apply`/`verify` are awaited internally even when synchronous (the
@@ -671,7 +671,7 @@ describe('createWindowSupervisor', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Tier 2: global rolling-window ceiling
+  // Tier 2: global rolling-rate ceiling
   // -------------------------------------------------------------------------
 
   it('caps total apply calls under a persistent A/B flap via the global rate ceiling (the flap regression)', async () => {
@@ -681,8 +681,8 @@ describe('createWindowSupervisor', () => {
     const debounceMs = 10;
     const verifyDelayMs = 5;
     const maxAttemptsPerTopology = 100; // high enough that Tier 1 alone would never trip
-    const maxAttemptsPerWindow = 6;
-    const attemptWindowMs = 100_000; // effectively unbounded for this test's timeframe
+    const maxGlobalAttempts = 6;
+    const globalRateWindowMs = 100_000; // effectively unbounded for this test's timeframe
     const supervisor = createWindowSupervisor({
       clock,
       apply,
@@ -690,8 +690,8 @@ describe('createWindowSupervisor', () => {
       debounceMs,
       verifyDelayMs,
       maxAttemptsPerTopology,
-      maxAttemptsPerWindow,
-      attemptWindowMs,
+      maxGlobalAttempts,
+      globalRateWindowMs,
     });
 
     const displaysA = [buildDisplay({ id: 1 })];
@@ -708,7 +708,7 @@ describe('createWindowSupervisor', () => {
       supervisor.onDisplaysChanged(i % 2 === 0 ? displaysB : displaysA);
     }
 
-    expect(apply).toHaveBeenCalledTimes(maxAttemptsPerWindow);
+    expect(apply).toHaveBeenCalledTimes(maxGlobalAttempts);
     expect(supervisor.state).toBe('givenUp');
     expect(supervisor.givenUpReason).toBe('rate');
     expect(clock.pendingCount).toBe(0);
@@ -720,8 +720,8 @@ describe('createWindowSupervisor', () => {
     const verify = vi.fn(() => true); // every attempt succeeds
     const debounceMs = 5;
     const verifyDelayMs = 5;
-    const maxAttemptsPerWindow = 5;
-    const attemptWindowMs = 100_000;
+    const maxGlobalAttempts = 5;
+    const globalRateWindowMs = 100_000;
     const supervisor = createWindowSupervisor({
       clock,
       apply,
@@ -729,8 +729,8 @@ describe('createWindowSupervisor', () => {
       debounceMs,
       verifyDelayMs,
       maxAttemptsPerTopology: 100,
-      maxAttemptsPerWindow,
-      attemptWindowMs,
+      maxGlobalAttempts,
+      globalRateWindowMs,
     });
 
     for (let i = 0; i < 6; i++) {
@@ -741,7 +741,7 @@ describe('createWindowSupervisor', () => {
       await flushAsync();
     }
 
-    expect(apply).toHaveBeenCalledTimes(maxAttemptsPerWindow);
+    expect(apply).toHaveBeenCalledTimes(maxGlobalAttempts);
     expect(supervisor.state).toBe('givenUp');
     expect(supervisor.givenUpReason).toBe('rate');
   });
@@ -752,8 +752,8 @@ describe('createWindowSupervisor', () => {
     const verify = vi.fn(() => true);
     const debounceMs = 5;
     const verifyDelayMs = 5;
-    const maxAttemptsPerWindow = 3;
-    const attemptWindowMs = 1000;
+    const maxGlobalAttempts = 3;
+    const globalRateWindowMs = 1000;
     const supervisor = createWindowSupervisor({
       clock,
       apply,
@@ -761,11 +761,11 @@ describe('createWindowSupervisor', () => {
       debounceMs,
       verifyDelayMs,
       maxAttemptsPerTopology: 100,
-      maxAttemptsPerWindow,
-      attemptWindowMs,
+      maxGlobalAttempts,
+      globalRateWindowMs,
     });
 
-    for (let i = 0; i < maxAttemptsPerWindow; i++) {
+    for (let i = 0; i < maxGlobalAttempts; i++) {
       supervisor.onDisplaysChanged([buildDisplay({ label: `D${i}` })]);
       await driveOneAttempt(clock, debounceMs, verifyDelayMs);
     }
@@ -775,8 +775,8 @@ describe('createWindowSupervisor', () => {
     expect(supervisor.givenUpReason).toBe('rate');
     apply.mockClear();
 
-    // Real quiet: advance well past attemptWindowMs with no events at all.
-    clock.advance(attemptWindowMs + 1);
+    // Real quiet: advance well past globalRateWindowMs with no events at all.
+    clock.advance(globalRateWindowMs + 1);
 
     supervisor.onDisplaysChanged([buildDisplay({ label: 'after-quiet' })]);
     clock.advance(debounceMs);
@@ -790,8 +790,8 @@ describe('createWindowSupervisor', () => {
     const verify = vi.fn(() => true);
     const debounceMs = 5;
     const verifyDelayMs = 5;
-    const maxAttemptsPerWindow = 2;
-    const attemptWindowMs = 1000;
+    const maxGlobalAttempts = 2;
+    const globalRateWindowMs = 1000;
     const supervisor = createWindowSupervisor({
       clock,
       apply,
@@ -799,11 +799,11 @@ describe('createWindowSupervisor', () => {
       debounceMs,
       verifyDelayMs,
       maxAttemptsPerTopology: 100,
-      maxAttemptsPerWindow,
-      attemptWindowMs,
+      maxGlobalAttempts,
+      globalRateWindowMs,
     });
 
-    for (let i = 0; i < maxAttemptsPerWindow; i++) {
+    for (let i = 0; i < maxGlobalAttempts; i++) {
       supervisor.onDisplaysChanged([buildDisplay({ label: `D${i}` })]);
       await driveOneAttempt(clock, debounceMs, verifyDelayMs);
     }
@@ -827,8 +827,8 @@ describe('createWindowSupervisor', () => {
     const debounceMs = 5;
     const verifyDelayMs = 5;
     const maxAttemptsPerTopology = 1; // give up immediately after one failed attempt per signature
-    const maxAttemptsPerWindow = 10;
-    const attemptWindowMs = 1_000_000; // never drains within this test
+    const maxGlobalAttempts = 10;
+    const globalRateWindowMs = 1_000_000; // never drains within this test
     const supervisor = createWindowSupervisor({
       clock,
       apply,
@@ -836,8 +836,8 @@ describe('createWindowSupervisor', () => {
       debounceMs,
       verifyDelayMs,
       maxAttemptsPerTopology,
-      maxAttemptsPerWindow,
-      attemptWindowMs,
+      maxGlobalAttempts,
+      globalRateWindowMs,
     });
 
     // 15 distinct signatures is more than the ledger's 8-entry bound, so
@@ -848,7 +848,7 @@ describe('createWindowSupervisor', () => {
       await driveOneAttempt(clock, debounceMs, verifyDelayMs);
     }
 
-    expect(apply).toHaveBeenCalledTimes(maxAttemptsPerWindow);
+    expect(apply).toHaveBeenCalledTimes(maxGlobalAttempts);
     expect(supervisor.state).toBe('givenUp');
     expect(supervisor.givenUpReason).toBe('rate');
   });
@@ -881,7 +881,7 @@ describe('createWindowSupervisor', () => {
     const { logger: logger2, entries: entries2 } = createCapturingLogger();
     const apply2 = vi.fn(() => undefined);
     const verify2 = vi.fn(() => true);
-    const maxAttemptsPerWindow = 2;
+    const maxGlobalAttempts = 2;
     const s2 = createWindowSupervisor({
       clock: clock2,
       apply: apply2,
@@ -889,11 +889,11 @@ describe('createWindowSupervisor', () => {
       debounceMs: 5,
       verifyDelayMs: 5,
       maxAttemptsPerTopology: 100,
-      maxAttemptsPerWindow,
-      attemptWindowMs: 1000,
+      maxGlobalAttempts,
+      globalRateWindowMs: 1000,
       logger: logger2,
     });
-    for (let i = 0; i < maxAttemptsPerWindow; i++) {
+    for (let i = 0; i < maxGlobalAttempts; i++) {
       s2.onDisplaysChanged([buildDisplay({ label: `D${i}` })]);
       await driveOneAttempt(clock2, 5, 5);
     }

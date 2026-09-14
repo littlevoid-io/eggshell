@@ -29,10 +29,12 @@
  *     every window combined, within a trailing `globalRateWindowMs`. This is
  *     what stops many windows each crash-looping within their own budget
  *     from adding up to unbounded total work. Named `maxGlobalReloads` /
- *     `globalRateWindowMs` rather than reusing `src/layout/supervisor.ts`'s
- *     `maxAttemptsPerWindow` / `attemptWindowMs` — "window" here already
- *     means a `BrowserWindow`, so naming the *time* window the same thing
- *     would be actively confusing in this file specifically.
+ *     `globalRateWindowMs` — deliberately the same `globalRateWindowMs` name
+ *     `src/layout/supervisor.ts` uses for its own Tier 2, since both files
+ *     implement the identical per-subject-ledger + global-rolling-rate-ceiling
+ *     pattern. "window" is reserved here for `BrowserWindow` — never for a
+ *     span of time — which is exactly why this field is `globalRateWindowMs`,
+ *     not some `...Window` variant that would read as "per BrowserWindow".
  *
  * ## Two self-healing mechanisms, both deliberately lazy (no dangling timer)
  *

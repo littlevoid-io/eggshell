@@ -99,7 +99,14 @@ function buildMaximalConfig() {
       roles: {
         touchWall: { labelPattern: 'Touch.*', index: 0, internal: false, touchCapable: true },
       },
-      supervisor: { debounceMs: 400, maxAttempts: 8, verifyDelayMs: 600, giveUpAfterMs: 20_000 },
+      supervisor: {
+        debounceMs: 400,
+        maxAttemptsPerTopology: 8,
+        verifyDelayMs: 600,
+        giveUpAfterMs: 20_000,
+        maxGlobalAttempts: 15,
+        globalRateWindowMs: 45_000,
+      },
       touchProbe: { enabled: true, timeoutMs: 3000 },
     },
     permissions: {
@@ -163,9 +170,11 @@ describe('shellConfigSchema — minimal config and defaults', () => {
     expect(parsed.plugins).toEqual({});
     expect(parsed.display.supervisor).toEqual({
       debounceMs: 300,
-      maxAttempts: 5,
+      maxAttemptsPerTopology: 5,
       verifyDelayMs: 500,
       giveUpAfterMs: 30_000,
+      maxGlobalAttempts: 20,
+      globalRateWindowMs: 60_000,
     });
     expect(parsed.display.touchProbe).toEqual({ enabled: false, timeoutMs: 2000 });
     const [window] = parsed.windows;
@@ -177,6 +186,112 @@ describe('shellConfigSchema — minimal config and defaults', () => {
       required: false,
       fallback: 'primary',
     });
+  });
+});
+
+describe('shellConfigSchema — display.supervisor Tier 2 (maxGlobalAttempts / globalRateWindowMs)', () => {
+  it('parses valid maxGlobalAttempts and globalRateWindowMs values', () => {
+    const config = {
+      ...minimalConfig(),
+      display: {
+        supervisor: { maxGlobalAttempts: 12, globalRateWindowMs: 45_000 },
+      },
+    };
+    const parsed: ShellConfig = shellConfigSchema.parse(config);
+    expect(parsed.display.supervisor.maxGlobalAttempts).toBe(12);
+    expect(parsed.display.supervisor.globalRateWindowMs).toBe(45_000);
+  });
+
+  it('defaults maxGlobalAttempts to 20 and globalRateWindowMs to 60_000 when omitted', () => {
+    const parsed: ShellConfig = shellConfigSchema.parse(minimalConfig());
+    expect(parsed.display.supervisor.maxGlobalAttempts).toBe(20);
+    expect(parsed.display.supervisor.globalRateWindowMs).toBe(60_000);
+  });
+
+  it('rejects a zero maxGlobalAttempts with the display.supervisor.maxGlobalAttempts path', () => {
+    const config = {
+      ...minimalConfig(),
+      display: { supervisor: { maxGlobalAttempts: 0 } },
+    };
+    const result = shellConfigSchema.safeParse(config);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(
+        expect.objectContaining({
+          path: ['display', 'supervisor', 'maxGlobalAttempts'],
+          message: expect.stringContaining('display.supervisor.maxGlobalAttempts'),
+        })
+      );
+    }
+  });
+
+  it('rejects a negative maxGlobalAttempts with the display.supervisor.maxGlobalAttempts path', () => {
+    const config = {
+      ...minimalConfig(),
+      display: { supervisor: { maxGlobalAttempts: -1 } },
+    };
+    const result = shellConfigSchema.safeParse(config);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(
+        expect.objectContaining({ path: ['display', 'supervisor', 'maxGlobalAttempts'] })
+      );
+    }
+  });
+
+  it('rejects a non-integer maxGlobalAttempts with the display.supervisor.maxGlobalAttempts path', () => {
+    const config = {
+      ...minimalConfig(),
+      display: { supervisor: { maxGlobalAttempts: 1.5 } },
+    };
+    const result = shellConfigSchema.safeParse(config);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(
+        expect.objectContaining({
+          path: ['display', 'supervisor', 'maxGlobalAttempts'],
+          message: expect.stringContaining('display.supervisor.maxGlobalAttempts'),
+        })
+      );
+    }
+  });
+
+  it('rejects a zero/negative/non-integer globalRateWindowMs with the display.supervisor.globalRateWindowMs path', () => {
+    for (const badValue of [0, -1, 1.5]) {
+      const config = {
+        ...minimalConfig(),
+        display: { supervisor: { globalRateWindowMs: badValue } },
+      };
+      const result = shellConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues).toContainEqual(
+          expect.objectContaining({
+            path: ['display', 'supervisor', 'globalRateWindowMs'],
+            message: expect.stringContaining('display.supervisor.globalRateWindowMs'),
+          })
+        );
+      }
+    }
+  });
+
+  it('rejects a zero/negative/non-integer maxAttemptsPerTopology with the display.supervisor.maxAttemptsPerTopology path', () => {
+    for (const badValue of [0, -1, 1.5]) {
+      const config = {
+        ...minimalConfig(),
+        display: { supervisor: { maxAttemptsPerTopology: badValue } },
+      };
+      const result = shellConfigSchema.safeParse(config);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues).toContainEqual(
+          expect.objectContaining({
+            path: ['display', 'supervisor', 'maxAttemptsPerTopology'],
+            message: expect.stringContaining('display.supervisor.maxAttemptsPerTopology'),
+          })
+        );
+      }
+    }
   });
 });
 

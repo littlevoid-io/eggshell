@@ -210,16 +210,25 @@ const displayRoleRuleSchema = z
     { message: 'a display role rule must set at least one selector field' }
   );
 
+const positiveInt = (label: string) =>
+  z.number().int(`${label} must be an integer`).positive(`${label} must be a positive number`);
+
+/**
+ * Tier 1 (per-topology) and Tier 2 (global rolling-rate) tuning for
+ * `src/layout/supervisor.ts`'s circuit breaker — see that file's module doc
+ * for the two-tier reasoning. Field names match the supervisor's own option
+ * names 1:1 (`maxAttemptsPerTopology`, `maxGlobalAttempts`,
+ * `globalRateWindowMs`) so a future pass-through never needs a renaming
+ * step that a typo could get away with silently.
+ */
 const supervisorPolicySchema = z
   .object({
     debounceMs: positiveIntMs('display.supervisor.debounceMs').default(300),
-    maxAttempts: z
-      .number()
-      .int('display.supervisor.maxAttempts must be an integer')
-      .positive()
-      .default(5),
+    maxAttemptsPerTopology: positiveInt('display.supervisor.maxAttemptsPerTopology').default(5),
     verifyDelayMs: positiveIntMs('display.supervisor.verifyDelayMs').default(500),
     giveUpAfterMs: positiveIntMs('display.supervisor.giveUpAfterMs').default(30_000),
+    maxGlobalAttempts: positiveInt('display.supervisor.maxGlobalAttempts').default(20),
+    globalRateWindowMs: positiveIntMs('display.supervisor.globalRateWindowMs').default(60_000),
   })
   .strict();
 const supervisorPolicyDefault = supervisorPolicySchema.parse({});
