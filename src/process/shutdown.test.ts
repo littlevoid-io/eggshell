@@ -232,7 +232,7 @@ describe('shutdownAll', () => {
     expect(clock.pendingCount).toBe(0);
   });
 
-  it('killTree uses the injected taskkill invoker with the right pid and flags', async () => {
+  it('killTree issues taskkill /PID <pid> /T /F at signal time, with the exact argv, before any grace wait', async () => {
     const clock = createFakeClock();
     const proc = createControllableProcess('a', 4242);
     const taskkillCalls: string[][] = [];
@@ -248,19 +248,91 @@ describe('shutdownAll', () => {
       taskkill,
     });
     await flushAsync();
-    clock.advance(1000); // grace elapses -> escalate via taskkill
-    await flushAsync();
-    proc.resolveExit(CLEAN_EXIT); // taskkill "worked"
 
+    // Tree-kill already issued, with no clock advance at all: this is the
+    // signal-time step, not the escalation step.
+    expect(taskkillCalls).toEqual([['/PID', '4242', '/T', '/F']]);
+    expect(proc.killedSignals).toEqual([]); // never fell back to handle.kill()
+
+    proc.resolveExit(CLEAN_EXIT);
     const results = await resultPromise;
 
-    expect(taskkillCalls).toEqual([['/PID', '4242', '/T', '/F']]);
-    expect(results).toEqual([{ id: 'a', pid: 4242, outcome: 'forceKilled' }]);
-    expect(proc.killedSignals).toEqual(['SIGTERM']); // never fell back to kill()
+    expect(results).toEqual([{ id: 'a', pid: 4242, outcome: 'exitedOnSignal' }]);
     expect(clock.pendingCount).toBe(0);
   });
 
-  it('falls back to kill() and logs, without throwing, when killTree is enabled but pid is undefined', async () => {
+  it('REGRESSION T2.13: a process that exits on its own within graceMs still had its tree swept at signal time (orphaned-grandchild gap)', async () => {
+    // This is the whole point of T2.13: previously, taskkill/killTree was
+    // only ever reached on the force-kill escalation path, so a process that
+    // exited gracefully within graceMs left any grandchildren it spawned
+    // orphaned and still holding ports. Asserting the taskkill argv here,
+    // *before* the grace period even elapses and while the outcome is still
+    // the graceful 'exitedOnSignal', is the regression check that the sweep
+    // now happens unconditionally rather than only on the unhappy path.
+    const clock = createFakeClock();
+    const proc = createControllableProcess('parent', 9001);
+    const taskkillCalls: string[][] = [];
+    const taskkill: TaskkillInvoker = args => {
+      taskkillCalls.push([...args]);
+      return Promise.resolve();
+    };
+
+    const resultPromise = shutdownAll([{ handle: proc.handle }], {
+      graceMs: 5000,
+      clock,
+      killTree: true,
+      taskkill,
+    });
+    await flushAsync();
+
+    // The tree was swept immediately, well before the process's own
+    // "graceful" exit below and well before graceMs could elapse.
+    expect(taskkillCalls).toEqual([['/PID', '9001', '/T', '/F']]);
+
+    // The parent now exits on its own, well inside graceMs.
+    proc.resolveExit(CLEAN_EXIT);
+    const results = await resultPromise;
+
+    expect(results).toEqual([{ id: 'parent', pid: 9001, outcome: 'exitedOnSignal' }]);
+    // Exactly one taskkill call for the whole run: the sweep happened once,
+    // at signal time, and the graceful exit never triggered a second one.
+    expect(taskkillCalls).toHaveLength(1);
+    expect(clock.pendingCount).toBe(0);
+  });
+
+  it('escalation retries the /T /F tree-kill when the process ignores the signal-time sweep', async () => {
+    const clock = createFakeClock();
+    const proc = createControllableProcess('a', 4242);
+    const taskkillCalls: string[][] = [];
+    const taskkill: TaskkillInvoker = args => {
+      taskkillCalls.push([...args]);
+      return Promise.resolve();
+    };
+
+    const resultPromise = shutdownAll([{ handle: proc.handle }], {
+      graceMs: 1000,
+      clock,
+      killTree: true,
+      taskkill,
+    });
+    await flushAsync();
+    expect(taskkillCalls).toEqual([['/PID', '4242', '/T', '/F']]); // signal-time sweep
+
+    clock.advance(1000); // grace elapses; process never exits -> escalate
+    await flushAsync();
+    clock.advance(1000); // post-force-kill bounded wait also elapses
+    const results = await resultPromise;
+
+    expect(taskkillCalls).toEqual([
+      ['/PID', '4242', '/T', '/F'],
+      ['/PID', '4242', '/T', '/F'],
+    ]);
+    expect(results).toEqual([{ id: 'a', pid: 4242, outcome: 'forceKilled' }]);
+    expect(proc.killedSignals).toEqual([]); // never fell back to handle.kill()
+    expect(clock.pendingCount).toBe(0);
+  });
+
+  it('falls back to handle.kill() and logs, without throwing, when killTree is enabled but pid is undefined, at both the signal-time and escalation attempts', async () => {
     const clock = createFakeClock();
     const proc = createControllableProcess('a', undefined);
     const { logger, calls } = createRecordingLogger();
@@ -278,6 +350,10 @@ describe('shutdownAll', () => {
       taskkill,
     });
     await flushAsync();
+    // Signal-time fallback already happened: no pid to target, so this fell
+    // back to a plain kill() with the ordinary (non-force) signal.
+    expect(proc.killedSignals).toEqual(['SIGTERM']);
+
     clock.advance(1000);
     await flushAsync();
     proc.resolveExit(CLEAN_EXIT);
@@ -287,10 +363,41 @@ describe('shutdownAll', () => {
     expect(results).toEqual([{ id: 'a', pid: undefined, outcome: 'forceKilled' }]);
     expect(taskkillCalls).toEqual([]);
     expect(proc.killedSignals).toEqual(['SIGTERM', 'SIGKILL']);
+    // One fallback warning per attempt: signal-time and escalation each
+    // independently discover there is no pid to target and each logs its
+    // own warning.
     const fallbackWarns = calls.filter(
       call => call.level === 'warn' && call.message.includes('falling back to kill()')
     );
-    expect(fallbackWarns).toHaveLength(1);
+    expect(fallbackWarns).toHaveLength(2);
+    expect(clock.pendingCount).toBe(0);
+  });
+
+  it('killTree: false never invokes taskkill, even through a full escalation (the POSIX-shaped path)', async () => {
+    const clock = createFakeClock();
+    const proc = createControllableProcess('a', 111);
+    const taskkillCalls: string[][] = [];
+    const taskkill: TaskkillInvoker = args => {
+      taskkillCalls.push([...args]);
+      return Promise.resolve();
+    };
+
+    const resultPromise = shutdownAll([{ handle: proc.handle }], {
+      graceMs: 1000,
+      clock,
+      killTree: false,
+      taskkill,
+    });
+    await flushAsync();
+    clock.advance(1000); // grace elapses; process never exits -> escalate
+    await flushAsync();
+    clock.advance(1000); // post-force-kill bounded wait also elapses
+
+    const results = await resultPromise;
+
+    expect(results).toEqual([{ id: 'a', pid: 111, outcome: 'forceKilled' }]);
+    expect(proc.killedSignals).toEqual(['SIGTERM', 'SIGKILL']);
+    expect(taskkillCalls).toEqual([]);
     expect(clock.pendingCount).toBe(0);
   });
 
