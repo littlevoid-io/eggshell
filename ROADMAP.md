@@ -27,6 +27,7 @@ Status values: `todo` | `in-progress` | `done` | `blocked`
 3. **New Phase 0 (guardrails).** Requirements 2, 5 and 6 are invariants that rot silently; each gets an automated check before any code exists that could violate it.
 4. **Four requirements added** beyond the original review, each a real unattended-installation failure mode: Electron `webPreferences` hardening + navigation guards (T3.2), single-instance lock (T3.5), crash/unresponsive watchdog (T3.6), graceful child shutdown (T2.9).
 5. **Deployment override file added (T1.5).** Requirement 4 mandates a serializable schema specifically so a provisioning tool can override config without a rebuild; that feature was absent from the plan.
+6. **T6.1 (example app skeleton) moved ahead of Phase 5.** T5.1, T5.3, and T5.4's own verify steps all say "run against the Phase 6 example" — but Phase 6 came after Phase 5 in task order, so those verify steps had no real target the first time through. Building `examples/basic-kiosk/` first gives every Phase 5 task something real to build/launch/diagnose against, rather than verifying by unit test and mock alone against a consumer shape nothing has actually exercised yet.
 
 ## Invariants (every task must preserve these)
 
@@ -408,7 +409,7 @@ Scaffold a consumer project: `eggshell.config.ts`, an Electron main calling `lau
 
 | ID   | Task                                | Status |
 | ---- | ----------------------------------- | ------ |
-| T6.1 | Example app skeleton                | todo   |
+| T6.1 | Example app skeleton                | done   |
 | T6.2 | Multi-window + touch-role layout    | todo   |
 | T6.3 | Offline + dashboard plugins enabled | todo   |
 | T6.4 | Build + manifest hand-off doc       | todo   |
