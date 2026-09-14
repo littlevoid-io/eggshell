@@ -257,10 +257,10 @@ Rejected: a real Win32 Job Object (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) is the 
 | T3.1 | Window manager (Electron binding of T2.2)         | done   |
 | T3.2 | Hardening + permissions wiring                    | done   |
 | T3.3 | Preload + IPC bridge                              | done   |
-| T3.4 | `launch()` orchestration                          | todo   |
+| T3.4 | `launch()` orchestration                          | done   |
 | T3.5 | Single-instance lock                              | done   |
 | T3.6 | Crash / unresponsive watchdog                     | done   |
-| T3.7 | Display-change wiring (T2.4 to Electron `screen`) | todo   |
+| T3.7 | Display-change wiring (T2.4 to Electron `screen`) | done   |
 
 ### T3.1 — Window manager
 
@@ -309,6 +309,18 @@ Implementation requirements:
 
 Subscribe `screen.on('display-added'|'display-removed'|'display-metrics-changed')`, map to `toDisplaySnapshots`, feed T2.4's `onDisplaysChanged`. `apply`/`verify` are thin Electron adapters. The probe cache must not be invalidated synchronously here (the old code's lockup path).
 **Verify:** typecheck + manual monitor unplug against the Phase 6 example.
+
+---
+
+### What assembling Phase 3 revealed
+
+Phase 2 was built as pure, independently-testable modules and Phase 3 wired them to Electron. Three defects existed only in the seams between modules that were each individually correct with thorough tests, and none was reachable without writing the real caller:
+
+1. **`ProcessSupervisor` and `shutdownAll` did not compose.** The supervisor owned the process handles; shutdown needed them; nothing exposed them. `launch()` initially worked around it with an external tracking wrapper. Closed by `getHandles()`.
+2. **The IPC allow-list was snapshotted before any plugin could register a channel.** The single-bridge-channel design existed specifically to avoid that ordering race, and the eager allow-list reintroduced it one layer up. Every test passed a hardcoded list, so the tests agreed with the code and both were wrong.
+3. **The `app.whenReady()` seam is contradictory by nature.** One constraint requires work before ready, another forbids it. Each module only ever saw its own side.
+
+The lesson for Phases 4-6: integration tasks are where cross-module defects surface, so the first real caller of any pair of modules should be treated as a design review of both, not merely as assembly.
 
 ---
 
@@ -466,6 +478,9 @@ Tracked in the lead architect's report; summarised here.
 | `806cd22` | T3.1, T3.2 — Electron window manager and hardening wiring                                              | 353 tests; windowed-mode clears kiosk+fullscreen in asserted order; zero policy logic duplicated into the adapter                                                                                                                             |
 | `1723631` | T3.3 — preload and IPC bridge                                                                          | 372 tests; allow-list ordering race caught in review and fixed; `dist/preload.cjs` verified real CommonJS                                                                                                                                     |
 | `85f9efc` | T3.5, T3.6 — single-instance lock and crash watchdog                                                   | 391 tests; per-window reload ledgers plus a global ceiling; `unresponsive` grace armed once per hang so a permanently frozen page cannot dodge the deadline                                                                                   |
+| `00a6ac7` | T3.7 — display-event wiring, plus supervisor tuning exposed in config                                  | 410 tests; probe-not-called-from-event-path regression test; 2px verify tolerance                                                                                                                                                             |
+| `912997f` | T3.4 — `launch()` orchestration, completing Phase 3                                                    | 423 tests; ordering tests for the `whenReady()` seam, single-instance short-circuit, and shutdown race                                                                                                                                        |
+| `0d8273d` | `ProcessSupervisor.getHandles()` — closes the T2.8/T2.9 composition gap                                | 430 tests; handle currency across restarts; liveness keyed to spawn, not readiness                                                                                                                                                            |
 
 ### Notes carried forward
 
@@ -492,6 +507,10 @@ Tracked in the lead architect's report; summarised here.
 - `applyKioskLock` cannot block OS-level shortcuts (Alt+Tab, Ctrl+Alt+Del, the Windows key) — `before-input-event` does not reach them. Window hardening is not machine lockdown; that is the provisioning tool's job.
 - `resolveLayout`'s bounds arithmetic assumes uniform DIP points per Electron's documented model. Untested on mixed-DPI multi-monitor rigs.
 - Electron's `requestingOrigin` exists only on the synchronous permission **check** handler, not the request handler, which carries `requestingUrl`. Each handler has its own origin-determination fallback; neither may fall back to `webContents.getURL()`, which returns the top frame and would be the iframe bypass.
+- `launch()` has ordered work on **both sides** of `app.whenReady()`, and it is not optional: the single-instance lock must be acquired before ready (a late `second-instance` listener misses an early duplicate launch), while `screen` throws if touched before ready. Do not "tidy" all setup to one side.
+- `ProcessSupervisor.getHandles()` keys handle liveness to **spawn** success, not readiness. Gating on readiness would hide a process whose readiness probe timed out while its OS process still runs, making it invisible to `shutdownAll` and orphaning a port.
+- Fatal (`error`-severity) layout problems throw before any window is created, and `display-events.ts` applies the same rule to later re-resolutions. One policy at startup and in steady state, so no window is ever silently black.
+- The supervisor's Tier 2 options are `maxGlobalAttempts`/`globalRateWindowMs`, matching `watchdog.ts`. The word "window" never means a time span in this codebase — it means a `BrowserWindow`.
 
 ---
 
