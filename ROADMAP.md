@@ -366,8 +366,8 @@ A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by d
 
 | ID   | Task                                    | Status |
 | ---- | --------------------------------------- | ------ |
-| T5.1 | `build()` via electron-builder Node API | todo   |
-| T5.2 | Launch manifest (versioned)             | todo   |
+| T5.1 | `build()` via electron-builder Node API | done   |
+| T5.2 | Launch manifest (versioned)             | done   |
 | T5.3 | `startDev()` / `startProduction()`      | todo   |
 | T5.4 | `runDoctor()` diagnostics               | todo   |
 | T5.5 | CLI bin                                 | todo   |

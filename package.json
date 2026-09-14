@@ -55,13 +55,20 @@
     "zod": "^4.6.4"
   },
   "peerDependencies": {
-    "electron": ">=44.0.0"
+    "electron": ">=44.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "peerDependenciesMeta": {
+    "electron-builder": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.5.1",
     "@types/qrcode": "^1.5.6",
     "electron": "^44.3.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^10.10.0",
     "eslint-import-resolver-node": "^0.4.0",
     "eslint-import-resolver-typescript": "^4.4.5",

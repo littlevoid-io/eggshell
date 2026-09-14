@@ -58,3 +58,7 @@ export type { LaunchApp, LaunchOptions, LaunchResult } from './shell/launch.js';
 
 export { systemClock } from './clock.js';
 export type { Clock } from './clock.js';
+
+export { build } from './build/build.js';
+export type { BuildOptions, BuildResult } from './build/build.js';
+export type { LaunchManifest } from './build/manifest.js';
