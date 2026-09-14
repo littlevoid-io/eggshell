@@ -20,3 +20,6 @@ export type {
   ManagedWindow,
   WindowSpec,
 } from './windows.js';
+
+export { IPC_BRIDGE_CHANNEL, MAX_ENVELOPE_BYTES, registerIpcBridge } from './ipc-bridge.js';
+export type { IpcBridgeHandle, IpcDispatcher, RegisterIpcBridgeOptions } from './ipc-bridge.js';

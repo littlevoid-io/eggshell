@@ -33,7 +33,9 @@
   },
   "files": ["dist", "LICENSE"],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "npm run build:main && npm run build:preload",
+    "build:main": "tsc -p tsconfig.build.json",
+    "build:preload": "tsc src/shell/preload.ts --ignoreConfig --module commonjs --moduleResolution node --target es2023 --outDir dist/.preload-tmp --skipLibCheck --esModuleInterop --ignoreDeprecations 6.0 && node -e \"const fs=require('fs');fs.copyFileSync('dist/.preload-tmp/preload.js','dist/preload.cjs');fs.rmSync('dist/.preload-tmp',{recursive:true,force:true});\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

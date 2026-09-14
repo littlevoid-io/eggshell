@@ -43,6 +43,11 @@ export class NamespacedHandlers<Args extends unknown[]> {
     }
     return handler(...args);
   }
+
+  /** Every registered `<pluginId>:<name>` key, in registration order. */
+  keys(): readonly string[] {
+    return [...this.handlers.keys()];
+  }
 }
 
 /** Per-plugin last-published status value, keyed by plugin id (not namespaced further — one value per plugin). */

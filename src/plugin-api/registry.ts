@@ -139,6 +139,18 @@ export class PluginRegistry {
     return this.status.read(pluginId);
   }
 
+  /**
+   * Every currently-registered IPC channel, namespaced `<pluginId>:<channel>`
+   * exactly as plugins registered them. Read-only accessor for T3.3's shell
+   * bridge (`registerIpcBridge`), so it can build its allow-list from real
+   * registrations instead of a hand-maintained literal that silently drifts
+   * out of sync. Reflects registrations live -- a caller re-reading this
+   * after a later `context.ipc.handle(...)` call sees the new channel too.
+   */
+  listIpcChannels(): readonly string[] {
+    return this.ipc.keys();
+  }
+
   getFailures(): readonly PluginFailure[] {
     return this.failures;
   }

@@ -365,6 +365,35 @@ describe('PluginRegistry commands', () => {
   });
 });
 
+describe('PluginRegistry.listIpcChannels', () => {
+  it('reflects channels registered by plugins, namespaced <pluginId>:<channel> as registered', async () => {
+    const registry = makeRegistry();
+    registry.register(
+      fakePlugin('dashboard', {
+        setup: context => {
+          context.ipc.handle('refresh', () => 'ok');
+        },
+      })
+    );
+    registry.register(
+      fakePlugin('offline', {
+        setup: context => {
+          context.ipc.handle('status', () => 'ok');
+        },
+      })
+    );
+
+    await registry.setupAll();
+
+    expect(registry.listIpcChannels()).toEqual(['dashboard:refresh', 'offline:status']);
+  });
+
+  it('is empty before any plugin registers an IPC channel', () => {
+    const registry = makeRegistry();
+    expect(registry.listIpcChannels()).toEqual([]);
+  });
+});
+
 describe('PluginRegistry status', () => {
   it('publishes and reads back a status value per plugin', async () => {
     const registry = makeRegistry();
