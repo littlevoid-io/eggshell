@@ -31,12 +31,15 @@
       "import": "./dist/plugins/soak/index.js"
     }
   },
-  "files": ["dist", "LICENSE"],
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "npm run build:main && npm run build:preload && npm run build:assets",
     "build:main": "tsc -p tsconfig.build.json",
     "build:preload": "tsc src/shell/preload.ts --ignoreConfig --module commonjs --moduleResolution node --target es2023 --outDir dist/.preload-tmp --skipLibCheck --esModuleInterop --ignoreDeprecations 6.0 && node -e \"const fs=require('fs');fs.copyFileSync('dist/.preload-tmp/preload.js','dist/preload.cjs');fs.rmSync('dist/.preload-tmp',{recursive:true,force:true});\"",
-    "build:assets": "node -e \"const fs=require('fs');fs.mkdirSync('dist/plugins/offline/assets',{recursive:true});fs.copyFileSync('src/plugins/offline/assets/offline.html','dist/plugins/offline/assets/offline.html');\"",
+    "build:assets": "node -e \"const fs=require('fs');fs.mkdirSync('dist/plugins/offline/assets',{recursive:true});fs.copyFileSync('src/plugins/offline/assets/offline.html','dist/plugins/offline/assets/offline.html');fs.cpSync('src/plugins/dashboard/assets','dist/plugins/dashboard/assets',{recursive:true});\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -47,12 +50,14 @@
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
+    "express": "^5.2.1",
     "zod": "^4.6.4"
   },
   "peerDependencies": {
     "electron": ">=44.0.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^26.5.1",
     "electron": "^44.3.0",
     "eslint": "^10.10.0",
