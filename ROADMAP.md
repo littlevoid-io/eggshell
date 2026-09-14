@@ -335,7 +335,7 @@ A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by d
 | ID   | Task                                      | Status |
 | ---- | ----------------------------------------- | ------ |
 | T4.1 | Offline-network overlay                   | done   |
-| T4.2 | Remote dashboard (localhost-only default) | todo   |
+| T4.2 | Remote dashboard (localhost-only default) | done   |
 | T4.3 | Companion QR/info overlay                 | todo   |
 | T4.4 | Soak-test fuzzer (dev-only)               | todo   |
 
