@@ -47,3 +47,6 @@ export type {
   DisplayEventBridgeOptions,
   SupervisorTuning,
 } from './display-events.js';
+
+export { launch } from './launch.js';
+export type { LaunchApp, LaunchOptions, LaunchResult } from './launch.js';

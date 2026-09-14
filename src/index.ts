@@ -52,3 +52,6 @@ export {
   consoleLogger,
 } from './logging/index.js';
 export type { LogLevel, LogFields, Logger } from './logging/index.js';
+
+export { launch } from './shell/launch.js';
+export type { LaunchApp, LaunchOptions, LaunchResult } from './shell/launch.js';
