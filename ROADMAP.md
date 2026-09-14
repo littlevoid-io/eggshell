@@ -337,7 +337,7 @@ A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by d
 | T4.1 | Offline-network overlay                   | done   |
 | T4.2 | Remote dashboard (localhost-only default) | done   |
 | T4.3 | Companion QR/info overlay                 | done   |
-| T4.4 | Soak-test fuzzer (dev-only)               | todo   |
+| T4.4 | Soak-test fuzzer (dev-only)               | done   |
 
 ### T4.1 — Offline overlay
 
@@ -527,6 +527,7 @@ Tracked work that blocks nothing and is deliberately not scheduled.
 | ID   | Task                                                         | Status |
 | ---- | ------------------------------------------------------------ | ------ |
 | T7.1 | Investigate WMI-ordinal to Electron `Display.id` correlation | todo   |
+| T7.2 | Diagnose intermittent `src/process/` test failure            | todo   |
 
 ### T7.1 — Investigate WMI-ordinal to Electron `Display.id` correlation
 
@@ -536,3 +537,9 @@ Worth establishing: whether WMI enumeration order is stable and matchable agains
 
 Deliverable is a written finding plus a recommendation to keep, fix, or remove the probe — **not** a speculative implementation. If no reliable correlation exists, removing the probe is a legitimate and preferred outcome.
 **Verify:** a written finding backed by observation on real multi-monitor touch hardware, not inference.
+
+### T7.2 — Diagnose intermittent `src/process/` test failure
+
+Caught while verifying T4.4 (unrelated to it — soak touches none of `src/process/`): `npm test` failed once in 18 consecutive runs, a `ProcessError` assertion mentioning `'my-proc'`, message content not captured before it passed again on retry. Not reproduced in 17 further runs. Smells like a timing-sensitive test (a real timer or real port rather than a fake clock) rather than a logic bug, but that's inference, not a finding.
+
+**Verify:** reproduce reliably (loop `npm test` with output captured on failure, or run the suspect file alone many times with `--reporter=verbose`), identify the exact test and assertion, then fix the flake at its source (almost certainly: inject a fake clock/deterministic port the way the rest of `src/process/` already does) rather than retrying past it.
