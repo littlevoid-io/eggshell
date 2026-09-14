@@ -279,7 +279,7 @@ describe('PluginRegistry config isolation', () => {
     // process config, display policy, or any other plugin's config — only
     // this plugin's own opaque `config` slice.
     expect(contextKeys.sort()).toEqual(
-      ['commands', 'config', 'ipc', 'logger', 'roots', 'status', 'windows'].sort()
+      ['commands', 'config', 'ipc', 'logger', 'roots', 'status', 'windows', 'signal'].sort()
     );
   });
 });
@@ -338,6 +338,30 @@ describe('PluginRegistry.teardownAll', () => {
     expect(order).toEqual(['third', 'second', 'first']);
     expect(teardownFailures).toHaveLength(1);
     expect(teardownFailures[0]?.pluginId).toBe('second');
+  });
+
+  it('removes all IPC channels and commands for a plugin upon teardown', async () => {
+    const registry = makeRegistry();
+    registry.register(
+      fakePlugin('dashboard', {
+        setup: context => {
+          context.ipc.handle('status', () => 'ok');
+          context.commands.register('refresh', () => 'ok');
+        },
+      })
+    );
+
+    await registry.setupAll();
+
+    // Verify they exist before teardown
+    expect(registry.dispatchIpc('dashboard:status', testInvocation)).toBe('ok');
+    expect(registry.invokeCommand('dashboard:refresh')).toBe('ok');
+
+    await registry.teardownAll();
+
+    // Verify they are removed after teardown
+    expect(() => registry.dispatchIpc('dashboard:status', testInvocation)).toThrow(/Unknown IPC channel/);
+    expect(() => registry.invokeCommand('dashboard:refresh')).toThrow(/Unknown command/);
   });
 });
 

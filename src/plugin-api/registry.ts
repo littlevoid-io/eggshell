@@ -60,6 +60,7 @@ export class PluginRegistry<TNative = unknown> {
   private readonly ipc = new NamespacedHandlers<[IpcInvocation, ...unknown[]]>();
   private readonly commands = new NamespacedHandlers<unknown[]>();
   private readonly status = new StatusStore();
+  private readonly abortControllers = new Map<string, AbortController>();
   private closed = false;
 
   constructor(options: PluginRegistryOptions<TNative>) {
@@ -107,15 +108,17 @@ export class PluginRegistry<TNative = unknown> {
   async teardownAll(): Promise<readonly PluginFailure[]> {
     const teardownFailures: PluginFailure[] = [];
     for (const pluginId of [...this.setupSucceededIds].reverse()) {
+      this.abortControllers.get(pluginId)?.abort();
       const plugin = this.plugins.get(pluginId);
-      if (!plugin?.teardown) {
-        continue;
+      if (plugin?.teardown) {
+        try {
+          await plugin.teardown();
+        } catch (error) {
+          teardownFailures.push(this.recordFailure(pluginId, 'teardown', error));
+        }
       }
-      try {
-        await plugin.teardown();
-      } catch (error) {
-        teardownFailures.push(this.recordFailure(pluginId, 'teardown', error));
-      }
+      this.ipc.clearNamespace(pluginId);
+      this.commands.clearNamespace(pluginId);
     }
     return teardownFailures;
   }
@@ -160,6 +163,8 @@ export class PluginRegistry<TNative = unknown> {
   }
 
   private createContextFor(pluginId: string): ShellContext<TNative> {
+    const abortController = new AbortController();
+    this.abortControllers.set(pluginId, abortController);
     return createShellContext({
       pluginId,
       roots: this.roots,
@@ -170,6 +175,7 @@ export class PluginRegistry<TNative = unknown> {
       onRegisterCommand: (name, handler) => this.registerCommand(pluginId, name, handler),
       onPublishStatus: value => this.status.publish(pluginId, value),
       onReadStatus: () => this.status.read(pluginId),
+      signal: abortController.signal,
     });
   }
 

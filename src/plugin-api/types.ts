@@ -112,6 +112,12 @@ export interface ShellContext<TNative = unknown> {
    * this seam exists to prevent.
    */
   readonly config: unknown;
+  /**
+   * Signal aborted if the plugin is tearing down or the shell is closing.
+   * Plugins with an async setup should check this signal after yielding,
+   * before performing side effects like registering a handler or creating a view.
+   */
+  readonly signal: AbortSignal;
 }
 
 /** One plugin's `setup`/`teardown` failure, isolated so it never aborts the others. */

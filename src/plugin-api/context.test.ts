@@ -32,6 +32,7 @@ describe('createShellContext', () => {
       onRegisterCommand,
       onPublishStatus,
       onReadStatus,
+      signal: new AbortController().signal,
     });
 
     expect(context.roots).toBe(roots);
@@ -69,6 +70,7 @@ describe('createShellContext', () => {
       onRegisterCommand: () => undefined,
       onPublishStatus: () => undefined,
       onReadStatus: () => undefined,
+      signal: new AbortController().signal,
     });
 
     context.logger.info('hello');

@@ -40,6 +40,7 @@ function createMockContext(config: unknown = {}): {
       userDataRoot: 'C:/mock/user',
     },
     config,
+    signal: new AbortController().signal,
   };
 
   return { context, commands, publishedStatuses };

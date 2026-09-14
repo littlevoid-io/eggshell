@@ -22,6 +22,7 @@ export interface CreateShellContextOptions<TNative = unknown> {
   onRegisterCommand(name: string, handler: CommandHandler): void;
   onPublishStatus(value: unknown): void;
   onReadStatus(): unknown;
+  signal: AbortSignal;
 }
 
 export function createShellContext<TNative = unknown>(
@@ -35,5 +36,6 @@ export function createShellContext<TNative = unknown>(
     logger: createChildLogger(options.logger, options.pluginId),
     roots: options.roots,
     config: options.config,
+    signal: options.signal,
   };
 }
