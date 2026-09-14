@@ -324,6 +324,12 @@ The lesson for Phases 4-6: integration tasks are where cross-module defects surf
 
 ---
 
+### Process note: T4.2 was reverted (2026-09-14)
+
+A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by directly reading and porting code from `cannes-villa-2026-demos` — including copying its prebuilt dashboard UI bundle byte-for-byte into `src/plugins/dashboard/assets/`. That repo is off-limits entirely: not just "don't write to it," but **don't read it, port from it, or treat it as reference material at all**. This whole package is a clean-room build — every requirement it needs to satisfy is already distilled into this file and the architecture notes above; the old repo exists only as the historical source of those lessons, already extracted, not something any task here should open. T4.1 (offline overlay) is the model to follow: built from this spec alone, no borrowed code or assets. Redo T4.2 the same way.
+
+---
+
 ## Phase 4 — Plugins
 
 | ID   | Task                                      | Status |
