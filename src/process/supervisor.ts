@@ -144,6 +144,27 @@ export interface ProcessSupervisor {
    * force-kill orchestration; this only stops the supervisor's own bookkeeping.
    */
   dispose(): void;
+  /**
+   * Returns the current live `ManagedProcess` handle for each process that
+   * has actually spawned and not yet exited, keyed by id. Exists
+   * specifically so `shutdownAll` (`process/shutdown.ts`) can be called
+   * directly against this supervisor's real handles — build its
+   * `ShutdownTarget[]` straight from these entries — with no external
+   * tracking wrapper to capture spawn output.
+   *
+   * A handle appears the instant `spawn` returns it — deliberately not
+   * gated on readiness, since a process still waiting on its readiness
+   * probe (or one whose readiness timed out while the OS process is still
+   * running) is a real process `shutdownAll` must still be able to reach.
+   * It disappears the instant its `exited` settles, for any reason: a
+   * process that never successfully spawned (`exited` rejected) never
+   * appears at all; one that has since exited and not (yet) been
+   * restarted is absent until its replacement spawns. After a restart,
+   * only the replacement handle appears — never the stale original, which
+   * would target a pid Windows may since have recycled for an unrelated
+   * process, exactly the hazard `shutdown.ts` is careful about.
+   */
+  getHandles(): ReadonlyMap<string, ManagedProcess>;
 }
 
 /** All mutable state for one supervised process, keyed by id — see the module doc comment on why this is never shared. */
@@ -155,6 +176,8 @@ interface ProcessRecord {
   lastError: string | undefined;
   restartTimer: TimerHandle | undefined;
   resetTimer: TimerHandle | undefined;
+  /** The current live handle, set by `trackHandle` the instant spawn succeeds and cleared the instant it exits — see `getHandles`. */
+  handle: ManagedProcess | undefined;
 }
 
 /** Mutable context threaded explicitly through module-level functions, matching `layout/supervisor.ts`'s pattern. */
@@ -195,6 +218,7 @@ export function createProcessSupervisor(options: ProcessSupervisorOptions): Proc
       lastError: undefined,
       restartTimer: undefined,
       resetTimer: undefined,
+      handle: undefined,
     });
   }
 
@@ -215,6 +239,15 @@ export function createProcessSupervisor(options: ProcessSupervisorOptions): Proc
       return record === undefined ? undefined : toStatus(record);
     },
     dispose: () => disposeSupervisor(ctx),
+    getHandles: () => {
+      const live = new Map<string, ManagedProcess>();
+      for (const record of ctx.records.values()) {
+        if (record.handle !== undefined) {
+          live.set(record.config.id, record.handle);
+        }
+      }
+      return live;
+    },
   };
 }
 
@@ -262,9 +295,40 @@ async function performStartAttempt(
     env: config.env,
     logger: ctx.logger,
   });
+  trackHandle(record, handle);
 
   await raceReadinessAgainstExit(ctx, config, handle);
   return handle;
+}
+
+/**
+ * Records `handle` as `record`'s current live handle for `getHandles()`, the
+ * instant `spawnFn` returns it — deliberately *not* gated on readiness. A
+ * process still waiting on its readiness probe (or one whose readiness
+ * timed out while the OS process is still alive) is still a real, running
+ * process that `shutdownAll` must be able to reach; only a process whose
+ * `exited` actually settles is no longer live. `exited` is raced elsewhere
+ * for readiness purposes — this is an independent, permanent observer that
+ * exists purely to keep `getHandles()` current, so it must attach its own
+ * rejection handler rather than relying on another call site's.
+ *
+ * The identity check in `clearHandleIfCurrent` guards against an already-
+ * superseded handle's `exited` settling out of order and wiping out a
+ * newer attempt's handle — structurally this can't happen given attempts
+ * run strictly sequentially per record, but see the module doc comment on
+ * why this file treats "stale thing overwrites current thing" as a class of
+ * bug worth guarding against even when believed impossible.
+ */
+function trackHandle(record: ProcessRecord, handle: ManagedProcess): void {
+  record.handle = handle;
+  const clear = (): void => clearHandleIfCurrent(record, handle);
+  handle.exited.then(clear, clear);
+}
+
+function clearHandleIfCurrent(record: ProcessRecord, handle: ManagedProcess): void {
+  if (record.handle === handle) {
+    record.handle = undefined;
+  }
 }
 
 async function checkPortsFree(ctx: SupervisorContext, config: ProcessConfig): Promise<void> {
@@ -368,6 +432,8 @@ async function monitorProcess(
 ): Promise<void> {
   const outcome = await awaitExit(handle);
   cancelResetTimer(ctx, record);
+  // `trackHandle` already clears `record.handle` once `exited` settles —
+  // nothing to do here on that front.
 
   if (!outcome.ok) {
     record.lastError = describeError(outcome.error);

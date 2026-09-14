@@ -237,15 +237,24 @@ export function applyWebRequestFilter(
 }
 
 /**
+ * `createHardenedWindowOptions`'s return type. Electron's own
+ * `BrowserWindowConstructorOptions` marks `webPreferences` optional, which
+ * would force every caller to assert it non-null even though this function
+ * always sets it -- `Required<...>` here reflects that guarantee accurately
+ * so no call site needs a `!`.
+ */
+export type HardenedWindowOptions = Required<
+  Pick<BrowserWindowConstructorOptions, 'webPreferences'>
+>;
+
+/**
  * Composes `hardenedWebPreferences()` with a preload script path into the
  * `webPreferences` slice of `BrowserWindowConstructorOptions`, for T3.1/
  * T3.4 to spread into their own window-construction options. Does not
  * create a window or know anything about placement -- that is T3.1's
  * concern (`src/shell/windows.ts`).
  */
-export function createHardenedWindowOptions(
-  preloadPath: string
-): Pick<BrowserWindowConstructorOptions, 'webPreferences'> {
+export function createHardenedWindowOptions(preloadPath: string): HardenedWindowOptions {
   return {
     webPreferences: {
       ...hardenedWebPreferences(),

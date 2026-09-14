@@ -45,16 +45,15 @@
  * one rule, enforced at both the startup and the steady-state layout path,
  * rather than a stricter one here and a looser one there.
  *
- * ## A seam gap this file had to work around
+ * ## Composing the supervisor with shutdownAll
  *
- * `ProcessSupervisor` (T2.8) starts and monitors processes but exposes no
- * way to get at the `ManagedProcess` handles it created — only status
- * summaries. `shutdownAll` (T2.9), on the other hand, needs exactly those
- * handles. Neither file was a candidate for modification (out of scope for
- * this task), so `startProcesses` below injects its own handle-recording
- * wrapper around the (also injectable) `spawn` function: every handle the
- * supervisor ever spawns — including restarts — is captured, keyed by
- * process id, with no change to either module. See `createTrackedSpawn`.
+ * `ProcessSupervisor` (T2.8) starts and monitors processes; `shutdownAll`
+ * (T2.9) needs the `ManagedProcess` handles it created to actually signal
+ * them. `ProcessSupervisor.getHandles()` returns exactly those — the current
+ * live handle per process, already excluding anything never successfully
+ * spawned or since exited — so `startProcesses` below simply reads it after
+ * `start()` resolves, and `performShutdown` reads it again right before
+ * `shutdownAll`, with no separate tracking wrapper around `spawn` needed.
  */
 
 import type { IpcMain, Screen, WebContents } from 'electron';
@@ -195,11 +194,7 @@ export async function launch(options: LaunchOptions): Promise<LaunchResult> {
   const roots = resolveRoots(options.roots);
   const shellConfig = loadShellConfig({ config: options.config, roots, logger });
 
-  const { supervisor: processSupervisor, handles: processHandles } = await startProcesses(
-    shellConfig,
-    options,
-    logger
-  );
+  const processSupervisor = await startProcesses(shellConfig, options, logger);
 
   const touchDisplayIds = await resolveTouchDisplayIds(shellConfig, options, logger);
   const touchHolder: { current: readonly number[] } = { current: touchDisplayIds };
@@ -267,7 +262,6 @@ export async function launch(options: LaunchOptions): Promise<LaunchResult> {
     ipcHandle,
     pluginRegistry,
     processSupervisor,
-    processHandles,
   };
   const shutdown = (): Promise<void> => performShutdown(state);
   registerShutdown(options, lock, logger, shutdown);
@@ -308,39 +302,17 @@ async function resolveTouchDisplayIds(
 // Processes
 // ---------------------------------------------------------------------------
 
-interface StartedProcesses {
-  readonly supervisor: ProcessSupervisor;
-  readonly handles: ReadonlyMap<string, ManagedProcess>;
-}
-
-/** Wraps `spawn` to record every handle it ever produces (including restarts), keyed by process id -- see module doc on the T2.8/T2.9 seam gap. */
-function createTrackedSpawn(spawn: SpawnFn): {
-  spawn: SpawnFn;
-  handles: Map<string, ManagedProcess>;
-} {
-  const handles = new Map<string, ManagedProcess>();
-  return {
-    handles,
-    spawn: spawnOptions => {
-      const handle = spawn(spawnOptions);
-      handles.set(spawnOptions.id, handle);
-      return handle;
-    },
-  };
-}
-
 async function startProcesses(
   shellConfig: ShellConfig,
   options: LaunchOptions,
   logger: Logger
-): Promise<StartedProcesses> {
-  const { spawn, handles } = createTrackedSpawn(options.spawn ?? spawnManaged);
+): Promise<ProcessSupervisor> {
   const supervisor = createProcessSupervisor({
     configs: shellConfig.processes,
     phase: 'production',
     clock: options.clock,
     logger,
-    spawn,
+    spawn: options.spawn ?? spawnManaged,
     ...(options.processHost === undefined ? {} : { host: options.processHost }),
   });
 
@@ -351,18 +323,19 @@ async function startProcesses(
     // restart bookkeeping and best-effort kill whatever earlier processes
     // did start, rather than leaving them orphaned holding ports.
     supervisor.dispose();
-    await abortPartialProcesses(handles, options, logger);
+    await abortPartialProcesses(supervisor, options, logger);
     throw error;
   }
 
-  return { supervisor, handles };
+  return supervisor;
 }
 
 async function abortPartialProcesses(
-  handles: ReadonlyMap<string, ManagedProcess>,
+  supervisor: ProcessSupervisor,
   options: LaunchOptions,
   logger: Logger
 ): Promise<void> {
+  const handles = supervisor.getHandles();
   if (handles.size === 0) {
     return;
   }
@@ -438,10 +411,7 @@ function buildWindows(
   placementsByWindowId: ReadonlyMap<string, WindowPlacement>,
   logger: Logger
 ): BuiltWindows {
-  // `webPreferences` is typed optional on `Pick<BrowserWindowConstructorOptions, 'webPreferences'>`
-  // only because the wider Electron type it is picked from allows omitting it;
-  // `createHardenedWindowOptions` itself always sets it.
-  const webPreferences = createHardenedWindowOptions(options.preloadPath).webPreferences!;
+  const webPreferences = createHardenedWindowOptions(options.preloadPath).webPreferences;
   const specs: WindowSpec[] = shellConfig.windows.map(w => ({ id: w.id, webPreferences }));
   const windows = createWindows(specs, options.browserWindowFactory);
   const windowsById = new Map(windows.map(w => [w.id, w]));
@@ -573,7 +543,6 @@ interface LaunchState {
   readonly ipcHandle: IpcBridgeHandle;
   readonly pluginRegistry: PluginRegistry;
   readonly processSupervisor: ProcessSupervisor;
-  readonly processHandles: ReadonlyMap<string, ManagedProcess>;
 }
 
 /**
@@ -595,7 +564,7 @@ async function performShutdown(state: LaunchState): Promise<void> {
   state.processSupervisor.dispose();
 
   const configsById = new Map(shellConfig.processes.map(config => [config.id, config]));
-  const targets = buildShutdownTargets(state.processHandles, configsById);
+  const targets = buildShutdownTargets(state.processSupervisor.getHandles(), configsById);
   await (options.shutdownAll ?? defaultShutdownAll)(targets, buildShutdownOptions(options, logger));
 
   state.watchdog.dispose();

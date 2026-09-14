@@ -7,7 +7,7 @@ import { createFakeClock } from '../__testing__/fake-clock.js';
 import type { Clock } from '../clock.js';
 import type { Logger } from '../logging/logger.js';
 import { noopLogger } from '../logging/logger.js';
-import type { ManagedProcess } from '../process/types.js';
+import type { ManagedProcess, ProcessExit } from '../process/types.js';
 import type { ShellPlugin } from '../plugin-api/types.js';
 import type { TouchProbe } from '../layout/probes/types.js';
 
@@ -613,6 +613,78 @@ describe('launch', () => {
     expect(shutdownOrder).toEqual(['watchdog.disarm', 'displayBridge.dispose', 'shutdownAll']);
     expect(shutdownAllMock).toHaveBeenCalledTimes(1);
   });
+
+  it(
+    "shutdownAll receives the supervisor's real, current handles with no external tracking " +
+      'wrapper -- including the replacement handle after a restart, never the original',
+    async () => {
+      const { app, emit } = buildFakeApp();
+      const clock = createFakeClock();
+      const exitResolvers: Array<(exit: ProcessExit) => void> = [];
+      const spawnedHandles: ManagedProcess[] = [];
+      const spawn = vi.fn((spawnOptions: { id: string }) => {
+        const exited = new Promise<ProcessExit>(resolve => {
+          exitResolvers.push(resolve);
+        });
+        const handle = buildFakeManagedProcess(spawnOptions.id, { exited });
+        spawnedHandles.push(handle);
+        return handle;
+      });
+      let capturedTargets: readonly { handle: ManagedProcess }[] = [];
+      const shutdownAllMock = vi.fn(async (targets: readonly { handle: ManagedProcess }[]) => {
+        capturedTargets = targets;
+        return [];
+      });
+      const options = buildBaseOptions({
+        app,
+        spawn,
+        shutdownAllMock,
+        clock,
+        config: buildRawConfig({
+          processes: [
+            {
+              id: 'proc1',
+              command: 'node',
+              args: [],
+              phase: 'production',
+              restart: {
+                policy: 'onCrash',
+                maxRestarts: 3,
+                backoffMs: 50,
+                backoffMultiplier: 1,
+                maxBackoffMs: 50,
+                resetAfterMs: 100_000,
+              },
+            },
+          ],
+        }),
+      });
+
+      const result = await launch(options);
+      expect(result.launched).toBe(true);
+      expect(spawnedHandles).toHaveLength(1);
+      const originalHandle = spawnedHandles[0]!;
+
+      // Crash the original handle and let the supervisor restart it before
+      // shutdown ever begins -- the whole point of this test is that
+      // shutdownAll must see the REPLACEMENT handle, not the one launch()
+      // happened to capture at start time.
+      exitResolvers[0]!({ code: 1, signal: null });
+      await flushAsync();
+      await clock.advance(50);
+      await flushAsync();
+      expect(spawnedHandles).toHaveLength(2);
+      const replacementHandle = spawnedHandles[1]!;
+
+      emit('before-quit', { preventDefault: vi.fn() });
+      await flushAsync();
+
+      expect(shutdownAllMock).toHaveBeenCalledTimes(1);
+      expect(capturedTargets).toHaveLength(1);
+      expect(capturedTargets[0]?.handle).toBe(replacementHandle);
+      expect(capturedTargets[0]?.handle).not.toBe(originalHandle);
+    }
+  );
 
   it('awaits the touch probe exactly once during launch, and never again from a display event handler', async () => {
     const screen = createFakeScreen([buildDisplay()]);

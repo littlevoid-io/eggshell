@@ -690,4 +690,144 @@ describe('createProcessSupervisor', () => {
     await flushAsync();
     expect(countFor(spawnedById, 'p')).toBe(1);
   });
+
+  // -------------------------------------------------------------------------
+  // getHandles() -- the T2.8/T2.9 composition seam.
+  // -------------------------------------------------------------------------
+
+  it('getHandles() returns the live handle for each running process, keyed by id', async () => {
+    const clock = createFakeClock();
+    const { spawn, spawnedById } = createRecordingSpawn();
+    const supervisor = createProcessSupervisor({
+      configs: [buildConfig({ id: 'a' }), buildConfig({ id: 'b' })],
+      phase: 'production',
+      clock,
+      spawn,
+    });
+    await supervisor.start();
+
+    const handles = supervisor.getHandles();
+
+    expect(handles.size).toBe(2);
+    expect(handles.get('a')).toBe(latest(spawnedById, 'a').handle);
+    expect(handles.get('b')).toBe(latest(spawnedById, 'b').handle);
+  });
+
+  it('getHandles() reflects the replacement handle after a restart, never the original', async () => {
+    const clock = createFakeClock();
+    const { spawn, spawnedById } = createRecordingSpawn();
+    const config = buildConfig({
+      id: 'p',
+      restart: { ...buildConfig().restart, policy: 'onCrash', backoffMs: 50 },
+    });
+    const supervisor = createProcessSupervisor({
+      configs: [config],
+      phase: 'production',
+      clock,
+      spawn,
+    });
+    await supervisor.start();
+    const originalHandle = supervisor.getHandles().get('p');
+
+    latest(spawnedById, 'p').resolveExit(CRASH_EXIT);
+    await flushAsync();
+    await clock.advance(50);
+    await flushAsync();
+    expect(supervisor.getStatus('p')?.state).toBe('ready');
+
+    const replacementHandle = supervisor.getHandles().get('p');
+    expect(replacementHandle).toBeDefined();
+    expect(replacementHandle).not.toBe(originalHandle);
+    expect(replacementHandle).toBe(latest(spawnedById, 'p').handle);
+  });
+
+  it('getHandles() exposes the handle for a process still waiting on its readiness probe', async () => {
+    const clock = createFakeClock();
+    const { spawn, spawnedById } = createRecordingSpawn();
+    const supervisor = createProcessSupervisor({
+      configs: [buildConfig({ id: 'p', readiness: { kind: 'log', pattern: 'READY' } })],
+      phase: 'production',
+      clock,
+      spawn,
+    });
+
+    const startPromise = supervisor.start();
+    await flushAsync();
+
+    // start() is still pending -- the process never announced readiness --
+    // but the real OS process is running and must stay reachable by
+    // shutdownAll for exactly that reason.
+    expect(supervisor.getHandles().get('p')).toBe(latest(spawnedById, 'p').handle);
+
+    // Settle the attempt so the test leaves no dangling promise.
+    latest(spawnedById, 'p').resolveExit(CRASH_EXIT);
+    await expect(startPromise).rejects.toThrow();
+  });
+
+  it('getHandles() still exposes the handle after a readiness timeout -- the process may still be running', async () => {
+    const clock = createFakeClock();
+    const { spawn, spawnedById } = createRecordingSpawn();
+    const supervisor = createProcessSupervisor({
+      configs: [
+        buildConfig({
+          id: 'slow',
+          readiness: { kind: 'log', pattern: 'READY' },
+          readinessTimeoutMs: 1000,
+        }),
+      ],
+      phase: 'production',
+      clock,
+      spawn,
+    });
+
+    const startPromise = supervisor.start();
+    const assertion = expect(startPromise).rejects.toThrow(/"slow"/);
+    await flushAsync();
+    clock.advance(1000);
+    await flushAsync();
+    await assertion;
+
+    expect(supervisor.getStatus('slow')?.state).toBe('failed');
+    expect(supervisor.getHandles().get('slow')).toBe(latest(spawnedById, 'slow').handle);
+  });
+
+  it('getHandles() omits a process that never successfully spawned', async () => {
+    const clock = createFakeClock();
+    const { spawn, spawnedById } = createRecordingSpawn();
+    const config = buildConfig({ id: 'p', readiness: { kind: 'log', pattern: 'READY' } });
+    const supervisor = createProcessSupervisor({
+      configs: [config],
+      phase: 'production',
+      clock,
+      spawn,
+    });
+
+    const startPromise = supervisor.start();
+    await flushAsync();
+    latest(spawnedById, 'p').rejectExit(
+      new ProcessError('process "p": failed to spawn "node": ENOENT')
+    );
+    await expect(startPromise).rejects.toThrow(/failed to spawn/);
+
+    expect(supervisor.getHandles().has('p')).toBe(false);
+  });
+
+  it('getHandles() omits a stopped process', async () => {
+    const clock = createFakeClock();
+    const { spawn, spawnedById } = createRecordingSpawn();
+    const supervisor = createProcessSupervisor({
+      configs: [buildConfig({ id: 'p', restart: { ...buildConfig().restart, policy: 'never' } })],
+      phase: 'production',
+      clock,
+      spawn,
+    });
+    await supervisor.start();
+    expect(supervisor.getHandles().has('p')).toBe(true);
+
+    latest(spawnedById, 'p').resolveExit(CRASH_EXIT);
+    await flushAsync();
+    expect(supervisor.getStatus('p')?.state).toBe('stopped');
+
+    expect(supervisor.getHandles().has('p')).toBe(false);
+  });
 });
