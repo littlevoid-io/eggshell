@@ -20,3 +20,11 @@ export type {
   SupervisorPhase,
   SpawnFn,
 } from './supervisor.js';
+export { shutdownAll } from './shutdown.js';
+export type {
+  ShutdownTarget,
+  ShutdownOptions,
+  ShutdownResult,
+  ShutdownOutcome,
+  TaskkillInvoker,
+} from './shutdown.js';
