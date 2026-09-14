@@ -158,20 +158,21 @@ There is **no** `shell` field and **no** `getBounds` callback — `bounds` is pl
 
 ## Phase 2 — Pure core (zero Electron imports)
 
-| ID    | Task                                  | Status |
-| ----- | ------------------------------------- | ------ |
-| T2.1  | Display topology signature            | done   |
-| T2.2  | Pure layout resolver                  | done   |
-| T2.3  | Touch probe interface + Windows impl  | done   |
-| T2.4  | Window supervisor state machine       | done   |
-| T2.5  | Port availability probe               | done   |
-| T2.6  | Safe argv spawn                       | done   |
-| T2.7  | Readiness probes                      | done   |
-| T2.8  | Process supervisor + restart policy   | done   |
-| T2.9  | Graceful shutdown                     | done   |
-| T2.10 | ShellContext + plugin registries      | done   |
-| T2.11 | Permission + hardening policy (pure)  | done   |
-| T2.12 | Touch-capability trust precedence fix | done   |
+| ID    | Task                                       | Status |
+| ----- | ------------------------------------------ | ------ |
+| T2.1  | Display topology signature                 | done   |
+| T2.2  | Pure layout resolver                       | done   |
+| T2.3  | Touch probe interface + Windows impl       | done   |
+| T2.4  | Window supervisor state machine            | done   |
+| T2.5  | Port availability probe                    | done   |
+| T2.6  | Safe argv spawn                            | done   |
+| T2.7  | Readiness probes                           | done   |
+| T2.8  | Process supervisor + restart policy        | done   |
+| T2.9  | Graceful shutdown                          | done   |
+| T2.10 | ShellContext + plugin registries           | done   |
+| T2.11 | Permission + hardening policy (pure)       | done   |
+| T2.12 | Touch-capability trust precedence fix      | done   |
+| T2.13 | Close the orphaned-grandchild shutdown gap | done   |
 
 ### T2.1 — Topology signature
 
@@ -237,6 +238,15 @@ Absolutely zero I/O and zero `await` (I9) — `touchDisplayIds` arrives as injec
 
 Surfaced by T2.3. `resolveLayout` was letting the injected probe result always win over Electron's per-display `touchSupport`. On Windows the probe's ids are WMI enumeration-order ordinals for digitizers, and no public API correlates them to Chromium's opaque `Display.id`, whereas `touchSupport` is reported natively against that exact id. The dangerous half was negative: a bogus ordinal could mark a display touch-capable even when Electron positively reported `unavailable`, silently landing a touch-targeted window on a non-touch monitor. `touchSupport` now wins wherever it expresses an opinion; the probe is consulted only for `'unknown'`. No new config flag — `display.touchProbe.enabled` already gates whether the probe runs, so "enabled" and "trusted" layer cleanly.
 **Verify:** done — 6 tests including the negative-override regression and an end-to-end case where a misaligned probe ordinal must not beat `touchSupport`.
+
+### T2.13 — Close the orphaned-grandchild shutdown gap
+
+`shutdownAll` swept a process tree only on the force-kill escalation path, so a supervised process that exited on its own within `graceMs` left its grandchildren alive, still holding TCP ports. The next launch's port pre-check then fails and the installation is dead until someone visits the venue. The module correctly refused to `taskkill` an already-exited pid, since Windows recycles pids and an unrelated process could inherit the number — so "always taskkill" was not an available fix.
+
+Fixed with **no new dependency** by moving the tree-kill to signal time (`taskkill /PID <pid> /T`), keeping `/T /F` as the escalation. This is safe from pid recycling for the same reason the existing force path is: the pid is confirmed alive at the moment it is used. POSIX keeps real `SIGTERM` → `SIGKILL` semantics, where `graceMs` genuinely buys cleanup time; it is not degraded to match Windows.
+
+Rejected: a real Win32 Job Object (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) is the theoretically correct primitive, but a registry investigation found **no maintained npm package wrapping it** — zero real hits. Corroborating evidence: `tree-kill` has ~35M weekly downloads and still shells out to `taskkill /T /F`. Hand-rolling via `koffi` is possible but its own issue tracker documents repeated Electron/asar packaging failures, and `@vscode/windows-process-tree` always compiles from source via node-gyp and only enumerates rather than kills. For a library every consumer pays that install cost, which is not worth it here.
+**Verify:** empirical PoC measuring `taskkill /T` versus `/T /F` against a real parent-plus-grandchild holding a port, before implementing; plus a named regression test that a process exiting within `graceMs` still has its tree swept.
 
 ---
 
@@ -404,21 +414,21 @@ A single `npm run smoke` at the repo root: lint, typecheck, unit tests, build th
 
 Tracked in the lead architect's report; summarised here.
 
-| #   | Question                                                                                                                                                                               | Recommendation                                                                                                                                                                                                                              |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Package name / npm scope — `eggshell` is likely taken on the public registry                                                                                                           | Keep `eggshell` locally; plan a scope (`@<org>/eggshell`) before any publish                                                                                                                                                                |
-| 2   | License                                                                                                                                                                                | MIT unless the venue work requires otherwise; currently unset                                                                                                                                                                               |
-| 3   | Prior installation-domain-specific entry-point name vs a domain-neutral name                                                                                                           | **Resolved:** renamed to `launch`; the old name was installation-domain vocabulary in a package sold as generic                                                                                                                             |
-| 4   | Soak: subpath export vs separate package                                                                                                                                               | Subpath now + a documented electron-builder exclusion; separate package only if the exclusion proves unreliable                                                                                                                             |
-| 5   | Windows touch detection mechanism                                                                                                                                                      | Behind `TouchProbe`, so the choice is deferrable and swappable                                                                                                                                                                              |
-| 6   | Schema defaults invented where the brief was silent: `window.kiosk: true`, `window.showWhenReady: true`, `window.fallback: 'primary'`, plus the supervisor/restart/touchProbe numerics | Reasonable but arbitrary, and now load-bearing behaviour. Worth a deliberate sign-off rather than inheritance by default                                                                                                                    |
-| 7   | `window.url` accepts any non-empty string rather than a validated URL                                                                                                                  | Kept permissive so local file paths still work; `doctor` should warn instead. Revisit once window-loading semantics are fixed                                                                                                               |
-| 8   | An explicit absolute `deploymentOverridePath` is not containment-checked, unlike every other path in the package                                                                       | Intentional — a provisioning tool may stage the file anywhere readable. Confirm this relaxation is acceptable                                                                                                                               |
-| 9   | `display.label` is included in the topology signature and can change on a driver update without the physical layout changing                                                           | Required, because role rules match on it. Watch for driver-triggered re-applies in the field                                                                                                                                                |
-| 10  | Ship the Windows touch probe at all? Post-T2.12 it can only break a tie when Electron reports `'unknown'`, and its ids are unverified WMI ordinals                                     | Recommend removing or keeping permanently default-off. A wrong answer fails silently (window on the wrong monitor); the honest `false` fails visibly via `role-unmatched`. It is already `enabled: false` by default, so this is not urgent |
-| 11  | Grandchildren of a process that exits within `graceMs` are not swept and can keep holding ports                                                                                        | The real fix is a Windows job object with kill-on-close, which needs a native dependency. Decide whether that dependency is acceptable, or accept detection-only via the port pre-check and `doctor`                                        |
-| 12  | Main→renderer push primitive for plugins (`windows.send`) is deliberately absent; `status` is pull-only                                                                                | Additive, so safe to defer. Design it against the offline overlay's real requirement in Phase 4 rather than guessing the shape now                                                                                                          |
-| 13  | Naming consistency: `launch()` takes a `ShellConfig` and sits beside `build()`/`loadShellConfig()`                                                                                     | **Resolved:** `ShellConfig`. Pairs with the already-established `ShellRoots`/`ShellContext`/`ShellPlugin` and the `src/shell/` directory; `KioskConfig` was rejected because `kiosk` is already a boolean field on `WindowConfig`           |
+| #   | Question                                                                                                                                                                               | Recommendation                                                                                                                                                                                                                                                              |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Package name / npm scope — `eggshell` is likely taken on the public registry                                                                                                           | Keep `eggshell` locally; plan a scope (`@<org>/eggshell`) before any publish                                                                                                                                                                                                |
+| 2   | License                                                                                                                                                                                | MIT unless the venue work requires otherwise; currently unset                                                                                                                                                                                                               |
+| 3   | Prior installation-domain-specific entry-point name vs a domain-neutral name                                                                                                           | **Resolved:** renamed to `launch`; the old name was installation-domain vocabulary in a package sold as generic                                                                                                                                                             |
+| 4   | Soak: subpath export vs separate package                                                                                                                                               | Subpath now + a documented electron-builder exclusion; separate package only if the exclusion proves unreliable                                                                                                                                                             |
+| 5   | Windows touch detection mechanism                                                                                                                                                      | Behind `TouchProbe`, so the choice is deferrable and swappable                                                                                                                                                                                                              |
+| 6   | Schema defaults invented where the brief was silent: `window.kiosk: true`, `window.showWhenReady: true`, `window.fallback: 'primary'`, plus the supervisor/restart/touchProbe numerics | Reasonable but arbitrary, and now load-bearing behaviour. Worth a deliberate sign-off rather than inheritance by default                                                                                                                                                    |
+| 7   | `window.url` accepts any non-empty string rather than a validated URL                                                                                                                  | Kept permissive so local file paths still work; `doctor` should warn instead. Revisit once window-loading semantics are fixed                                                                                                                                               |
+| 8   | An explicit absolute `deploymentOverridePath` is not containment-checked, unlike every other path in the package                                                                       | Intentional — a provisioning tool may stage the file anywhere readable. Confirm this relaxation is acceptable                                                                                                                                                               |
+| 9   | `display.label` is included in the topology signature and can change on a driver update without the physical layout changing                                                           | Required, because role rules match on it. Watch for driver-triggered re-applies in the field                                                                                                                                                                                |
+| 10  | Ship the Windows touch probe at all? Post-T2.12 it can only break a tie when Electron reports `'unknown'`, and its ids are unverified WMI ordinals                                     | **Still open, non-urgent.** Keep default-off. T7.1 tracks the investigation into whether a WMI-ordinal-to-`Display.id` correlation exists at all, which is what would settle keep-versus-remove. Already `enabled: false` by default, so nothing is blocked in the meantime |
+| 11  | Grandchildren of a process that exits within `graceMs` are not swept and can keep holding ports                                                                                        | **Resolved:** a zero-dependency `taskkill /T`-at-signal-time fix was chosen over a Win32 job-object/FFI implementation, since no maintained job-object npm package exists. T2.13 implements it                                                                              |
+| 12  | Main→renderer push primitive for plugins (`windows.send`) is deliberately absent; `status` is pull-only                                                                                | Additive, so safe to defer. Design it against the offline overlay's real requirement in Phase 4 rather than guessing the shape now                                                                                                                                          |
+| 13  | Naming consistency: `launch()` takes a `ShellConfig` and sits beside `build()`/`loadShellConfig()`                                                                                     | **Resolved:** `ShellConfig`. Pairs with the already-established `ShellRoots`/`ShellContext`/`ShellPlugin` and the `src/shell/` directory; `KioskConfig` was rejected because `kiosk` is already a boolean field on `WindowConfig`                                           |
 
 ## Progress log
 
@@ -456,3 +466,22 @@ Tracked in the lead architect's report; summarised here.
 - `touchSupport` beats the touch probe wherever it is not `'unknown'` (T2.12). Do not restore probe precedence.
 - `shutdownAll` only sweeps a process tree on the force-kill path. Calling `taskkill` against an already-exited pid risks hitting a recycled pid, which is worse than doing nothing.
 - `supervisor.dispose()` must be called before `shutdownAll`, never after or concurrently, or shutdown races the restart policy respawning what it just killed.
+
+---
+
+## Phase 7 — Backlog (non-blocking)
+
+Tracked work that blocks nothing and is deliberately not scheduled.
+
+| ID   | Task                                                         | Status |
+| ---- | ------------------------------------------------------------ | ------ |
+| T7.1 | Investigate WMI-ordinal to Electron `Display.id` correlation | todo   |
+
+### T7.1 — Investigate WMI-ordinal to Electron `Display.id` correlation
+
+Investigation, not implementation. The Windows touch probe returns WMI `Win32_PointingDevice` enumeration-order ordinals, and no known public API correlates them to Chromium's opaque, session-scoped `Display.id`. T2.12 confined the probe to acting only as a tiebreaker when Electron reports `touchSupport: 'unknown'`, which makes this non-urgent.
+
+Worth establishing: whether WMI enumeration order is stable and matchable against Electron's display enumeration on real multi-monitor hardware; whether a different Windows API (monitor EDID/device-instance paths, `SetupAPI`, `Win32_DesktopMonitor`, `Win32_PnPEntity` associations) carries a correlation Chromium also exposes; and whether Electron's own `touchSupport` is simply sufficient in practice, which would let the probe be deleted outright.
+
+Deliverable is a written finding plus a recommendation to keep, fix, or remove the probe — **not** a speculative implementation. If no reliable correlation exists, removing the probe is a legitimate and preferred outcome.
+**Verify:** a written finding backed by observation on real multi-monitor touch hardware, not inference.
