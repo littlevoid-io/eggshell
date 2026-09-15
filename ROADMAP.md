@@ -369,7 +369,7 @@ A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by d
 | T5.1 | `build()` via electron-builder Node API | done   |
 | T5.2 | Launch manifest (versioned)             | done   |
 | T5.3 | `startDev()` / `startProduction()`      | done¹  |
-| T5.4 | `runDoctor()` diagnostics               | todo   |
+| T5.4 | `runDoctor()` diagnostics               | done   |
 | T5.5 | CLI bin                                 | todo   |
 | T5.6 | `init` scaffolder                       | todo   |
 
@@ -394,6 +394,12 @@ A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by d
 
 `src/build/doctor.ts`: returns a structured `DoctorReport` of checks — platform/arch, Electron resolvable, config validates, required ports free (T2.5), display count vs. configured targets, touch probe result, plugin asset presence, write access to `userDataRoot`, override file parse. Each check is `pass|warn|fail` with a remediation string. Suitable as a provisioning gate, so the CLI must set a non-zero exit on any `fail` (exit happens in `bin.ts` only, I6).
 **Verify:** run against the example; force a failure (occupy a port) and assert the specific check fails with non-zero CLI exit.
+
+**Done.** All 9 checks run concurrently via `Promise.all`, each wrapped in `safelyRunCheck` with a 10s default timeout (`DoctorOptions.checkTimeoutMs`) racing the check's promise so a hung probe fails loudly instead of freezing the report forever. `checkConfigValidates`'s validated config (schema defaults applied) is threaded into the remaining 8 checks instead of the raw input.
+
+A delegated review (flash tier) against the first implementation found, and a follow-up fix job confirmed fixed: `extractProcessPorts` (in `checks/ports.ts`) now parses a port out of `readiness.url` for `kind: 'http'` entries via the `URL` constructor (falling back to the scheme default port), not just `kind: 'tcp'` — verified live against a real port conflict on a port that appears _only_ in an http readiness URL; `findOccupiedPorts` no longer conflates "port checker rejected" with "port occupied" — a rejection surfaces as its own distinct "could not check port N" failure; `checkUserDataWriteAccess` no longer fails the whole check when the probe write succeeds but best-effort `unlink` cleanup fails.
+
+Two further bugs were found independently — not by the delegated review — via my own live testing and manual code reading: `checkUserDataWriteAccess` originally failed on a merely-missing (but creatable) `userDataRoot`, which is the common case on a fresh machine before Electron's `app.getPath('userData')` has ever run; fixed by adding `fs.mkdir(root, { recursive: true })` before the write probe. Separately, `displays.ts`'s Windows PowerShell fallback (`queryWindowsDisplayCount`) had **no timeout at all** on its `execFile` call — the exact unbounded-child-process failure mode that originally justified this whole package's display-resolution design (see T2.3, T7.1). Fixed with `{ timeout: 3000, windowsHide: true }`. Neither of these was caught by either the delegated review or unit tests; both were found only by actually running the doctor against `examples/basic-kiosk/` and by reading every check file by hand.
 
 ### T5.5 — CLI bin
 
@@ -490,6 +496,7 @@ Tracked in the lead architect's report; summarised here.
 | `00a6ac7` | T3.7 — display-event wiring, plus supervisor tuning exposed in config                                  | 410 tests; probe-not-called-from-event-path regression test; 2px verify tolerance                                                                                                                                                             |
 | `912997f` | T3.4 — `launch()` orchestration, completing Phase 3                                                    | 423 tests; ordering tests for the `whenReady()` seam, single-instance short-circuit, and shutdown race                                                                                                                                        |
 | `0d8273d` | `ProcessSupervisor.getHandles()` — closes the T2.8/T2.9 composition gap                                | 430 tests; handle currency across restarts; liveness keyed to spawn, not readiness                                                                                                                                                            |
+| `b1936d8` | T5.4 — `runDoctor()` preflight diagnostics                                                             | 621 tests; live-verified http-readiness port extraction against a real port conflict; independently-found userDataRoot and PowerShell-timeout bugs fixed and re-verified                                                                      |
 
 ### Notes carried forward
 
@@ -527,12 +534,12 @@ Tracked in the lead architect's report; summarised here.
 
 Tracked work that blocks nothing and is deliberately not scheduled.
 
-| ID   | Task                                                         | Status |
-| ---- | ------------------------------------------------------------ | ------ |
-| T7.1 | Investigate WMI-ordinal to Electron `Display.id` correlation | todo   |
-| T7.2 | Diagnose intermittent `src/process/` test failure            | todo   |
+| ID   | Task                                                             | Status |
+| ---- | ---------------------------------------------------------------- | ------ |
+| T7.1 | Investigate WMI-ordinal to Electron `Display.id` correlation     | todo   |
+| T7.2 | Diagnose intermittent `src/process/` test failure                | todo   |
 | T7.3 | Live-verify `startDev()`/`startProduction()` against the example | done   |
-| T7.4 | Soak fuzzer: viewport sizing and single-window targeting        | todo   |
+| T7.4 | Soak fuzzer: viewport sizing and single-window targeting         | todo   |
 
 ### T7.1 — Investigate WMI-ordinal to Electron `Display.id` correlation
 
@@ -555,7 +562,7 @@ T5.3 was unit-tested (mocked spawn/Electron resolution) and independently review
 
 `startProduction()` threw `ProcessError: command "...\Basic Kiosk Example.exe" contains whitespace ...` — `spawnManaged`'s own I2 safety guard (`assertSafeCommand` in `src/process/spawn.ts`) rejected the built executable's own path, because electron-builder's default `<productName>.exe` naming contains a space and the guard's original whitespace check made no exception for a real, existing file. The guard's own doc comment inadvertently proved the bug: it cited `C:\Program Files\node\node.exe` as an example of "a real path that must remain usable" while justifying excluding backslash/colon — that exact example path contains a space and would have been rejected by the guard's own code.
 
-**Fixed**: `assertSafeCommand` now only rejects whitespace when the literal path does *not* exist as a real file on disk (`existsSync`); genuine shell metacharacters are still always rejected unconditionally. A new regression test copies a real executable to a path with a space and confirms it's now accepted, alongside the existing test proving `"node -e 1"` (a real mashed-together mistake, not a real file) is still correctly rejected. Re-verified live after the fix: `startProduction()` launches the real built `.exe` and `handle.stop()` cleanly terminates it, confirmed via Task Manager (no orphaned process). `startDev()` worked on the first attempt.
+**Fixed**: `assertSafeCommand` now only rejects whitespace when the literal path does _not_ exist as a real file on disk (`existsSync`); genuine shell metacharacters are still always rejected unconditionally. A new regression test copies a real executable to a path with a space and confirms it's now accepted, alongside the existing test proving `"node -e 1"` (a real mashed-together mistake, not a real file) is still correctly rejected. Re-verified live after the fix: `startProduction()` launches the real built `.exe` and `handle.stop()` cleanly terminates it, confirmed via Task Manager (no orphaned process). `startDev()` worked on the first attempt.
 
 The soak fuzzer (T4.4) was also live-verified in this pass: real synthetic actions were generated and dispatched via `executeJavaScript`, and a real report with real recorded actions was produced. See T7.4 for two lower-severity gaps found during that check.
 
