@@ -428,7 +428,7 @@ Two real bugs were found only through live verification, neither caught by unit 
 | ID   | Task                                | Status |
 | ---- | ----------------------------------- | ------ |
 | T6.1 | Example app skeleton                | done   |
-| T6.2 | Multi-window + touch-role layout    | todo   |
+| T6.2 | Multi-window + touch-role layout    | done   |
 | T6.3 | Offline + dashboard plugins enabled | todo   |
 | T6.4 | Build + manifest hand-off doc       | todo   |
 | T6.5 | Soak run + CI smoke script          | todo   |
@@ -442,6 +442,10 @@ Two real bugs were found only through live verification, neither caught by unit 
 
 Two windows: one `{kind:'role', role:'touch'}`, one `{kind:'primary'}`; plus a commented `spanAll` + kiosk case documenting the deliberate downgrade. Must behave correctly on a single-display dev machine via the fallback path.
 **Verify:** run on a single-display machine (fallback) and, if available, a two-display machine.
+
+**Done.** `examples/basic-kiosk` now launches two windows: `main` (`{kind:'primary'}`, unchanged) and `touch` (`{kind:'role', role:'touch'}`, `fallback: 'primary'`, backed by a new `display.roles.touch = {touchCapable: true}` policy). The `spanAll`+`kiosk` contradiction is documented as an inert object literal with a comment, not a third active window.
+
+Live-verified on this machine's real (non-touch) 2-display hardware: `role-unmatched` fires for the touch target exactly as expected, falls back to `primary`, both windows render distinct real content at their own non-overlapping bounds. Found and fixed while verifying: the delegated implementation's own documentation-only `spanAll` literal didn't typecheck in the example's own separate `tsc` build (it was typed against `WindowConfig`, the schema's fully-resolved _output_ type, while written as a partial literal — invisible to the repo root's own `npm run typecheck`, which doesn't compile `examples/**`). Also found, while reviewing this task's diff, that `launch()` itself never called `loadURL` anywhere — the delegated implementation had worked around this with a per-consumer `loadURL` call in `main.ts`; the real fix belongs in the library (see `dbfcab8`), so that workaround was removed once the core fix landed.
 
 ### T6.3 — Plugins enabled
 
@@ -510,6 +514,7 @@ Tracked in the lead architect's report; summarised here.
 | `ae98792` | T5.6 — `scaffoldProject()` init scaffolder                                                             | 629 tests; live end-to-end npm install + tsc against a real scaffolded project; independently-found npm-registry-name-squatting and newline-escaping bugs fixed and re-verified                                                                                                             |
 | `b203eb9` | T5.5 — CLI bin, completing Phase 5                                                                     | 654 tests; live end-to-end init+install+doctor(pass/fail via forced port conflict)+--help against a real scaffolded consumer; independently-found dev/start-always-exits-0-on-crash bug fixed and re-verified                                                                               |
 | `dbfcab8` | Core fix: `launch()` never called `loadURL` - every window was permanently blank                       | 656 tests; live-verified against examples/basic-kiosk with a temporary did-finish-load probe (reverted, not committed) - `document.title` now reads real content instead of blank; found while reviewing a parallel T6.2 worktree's own per-consumer workaround for the same underlying gap |
+| `4031a0d` | T6.2 — multi-window + touch-role layout                                                                | 656 tests; live-verified role-unmatched -> primary fallback on real non-touch hardware, both windows rendering distinct real content; independently-found example-only tsc error and a redundant loadURL workaround fixed/removed                                                           |
 
 ### Notes carried forward
 
