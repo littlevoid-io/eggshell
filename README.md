@@ -1,32 +1,35 @@
-# eggshell
+# Egg Shell 🐣
 
-Electron kiosk-launcher library: window management, multi-display layout, process supervision, plugins, and a CLI — call `launch(config)` from your Electron main.
+A library for building Electron kiosk apps. It handles window management, multi-display layout, and process supervision, and comes with a CLI and a few optional plugins. Call `launch(config)` from your Electron main file and it takes care of the rest.
 
-> Pre-publish, unscoped, `private: true`. Consume via a `file:` dependency.
+> This package isn't published to npm yet — it's still private while things settle. To use it now, add it to your project as a local `file:` dependency instead of installing it normally.
 
 ## Quick start
 
 ```sh
-npx eggshell init my-kiosk && cd my-kiosk && npm install && npm run dev
+npx eggshell init my-kiosk
+cd my-kiosk
+npm install
+npm run dev
 ```
 
-See [`examples/basic-kiosk`](examples/basic-kiosk) for a full consumer.
+Check out [`examples/basic-kiosk`](examples/basic-kiosk) for a working example.
 
 ## Features
 
-- Kiosk window management with multi-display layout resolution (roles, fallbacks, span-all)
-- Child-process supervision with restart policies and readiness probes
-- Build + launch-manifest generation for provisioning hand-off
-- `doctor` preflight diagnostics
-- Plugins (opt-in): `offline` overlay, `dashboard` (remote status/control), `companion` (QR overlay), `soak` (fuzzer)
+- Kiosk window management, including multi-display layout with roles and fallbacks
+- Supervises your app's child processes, restarting them and checking readiness as needed
+- Builds your app and generates a launch manifest, so a separate provisioning tool can pick it up
+- A `doctor` command that checks your setup before you deploy
+- Optional plugins: an offline overlay, a remote status/control dashboard, a QR-code companion overlay, and an interaction fuzzer for soak testing
 
 ## CLI
 
-`eggshell <dev|build|start|doctor|init>` — reads `eggshell.config.{ts,mjs,js}`, `--help` per command.
+`eggshell <dev|build|start|doctor|init>` reads your `eggshell.config.{ts,mjs,js}` file. Add `--help` to any command to see its options.
 
 ## How it works
 
-Every root (`projectRoot`, `userDataRoot`) is an explicit input — nothing is discovered by walking the filesystem. See [`docs/architecture.md`](docs/architecture.md) for layering/invariants and [`docs/provisioning.md`](docs/provisioning.md) for the build-manifest contract.
+You always tell eggshell where things are — it never goes looking for a project root on its own. See [`docs/architecture.md`](docs/architecture.md) for how it's put together, and [`docs/provisioning.md`](docs/provisioning.md) if you're hooking up an external provisioning tool.
 
 ## Development
 

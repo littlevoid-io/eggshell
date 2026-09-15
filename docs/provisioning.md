@@ -1,12 +1,12 @@
-# Provisioning Hand-off Contract
+# Provisioning Hand-off
 
-The contract between `eggshell`'s build output and an external provisioning tool that deploys, launches, and supervises the app.
+How an external provisioning tool can find, launch, and supervise an app built with eggshell.
 
-## Artifact location
+## Where the build ends up
 
-`build()` packages into `<projectRoot>/release/<platform-arch-subdir>/` and writes the launch manifest next to the executable, at `<projectRoot>/release/<platform-arch-subdir>/eggshell.launch.json`. The subdirectory name (`win-unpacked`, `mac`, ...) is decided by `electron-builder` per platform/arch — don't hardcode it. `eggshell start` locates the manifest itself by scanning `release/`'s immediate subdirectories (pass `--manifest-path` if more than one exists). `executablePath` inside the manifest is always absolute.
+`build()` packages your app into `<projectRoot>/release/<platform-arch-subdir>/`, and writes a launch manifest right next to the executable, at `<projectRoot>/release/<platform-arch-subdir>/eggshell.launch.json`. That subdirectory name (`win-unpacked`, `mac`, and so on) is chosen by `electron-builder` depending on the platform and architecture, so don't hardcode it — `eggshell start` already knows to look for the manifest by checking `release/`'s immediate subdirectories itself. If it finds more than one, pass `--manifest-path` to say which one you mean. Whatever it finds, the manifest's `executablePath` is always an absolute path, so you never have to guess.
 
-## Launch manifest schema
+## The launch manifest
 
 ```ts
 interface LaunchManifest {
@@ -21,22 +21,22 @@ interface LaunchManifest {
 }
 ```
 
-`manifestVersion` is a stability contract: additive fields don't bump it (ignore unrecognized fields); any removal/rename/type change requires a major bump.
+Think of `manifestVersion` as a promise: new optional fields can be added without bumping it, so it's safe to just ignore fields you don't recognize. If a field is ever removed, renamed, or changes type, that's a breaking change and the version number goes up.
 
-## Startup invocation
+## Starting the app
 
-Invoke via the CLI, not the binary directly:
+Use the CLI rather than launching the executable directly:
 
 ```sh
 eggshell start --project-root <projectRoot>
 ```
 
-Flags: `--manifest-path <path>` (only needed with multiple manifests), `--user-data-dir <path>`.
+You can also pass `--manifest-path <path>` if you need to point at a specific manifest, or `--user-data-dir <path>` to change where Electron stores user data.
 
-**Exit code**: `0` on a clean stop (the app exited 0, or the CLI received `SIGINT`/`SIGTERM`); `1` on a crash, unexpected exit, external kill, or pre-launch validation failure. A provisioning tool should treat any non-zero exit as a restart/alert trigger.
+**Exit codes matter here.** A `0` means the app stopped cleanly — either it exited on its own with code 0, or the CLI got a `SIGINT`/`SIGTERM` and shut it down gracefully. Anything else (a crash, an unexpected exit, being killed externally, or failing to launch at all) comes back as `1`. Treat any non-zero exit as a sign to restart or raise an alert.
 
-`startProduction` refuses to launch a manifest built for a different platform/arch than the current machine (throws `LaunchError`).
+One more safety net: if you try to run a manifest that was built for a different platform or architecture than the machine you're on, `startProduction` refuses to launch it and throws a `LaunchError` instead.
 
-## Distribution
+## A note on distribution
 
-Pre-publish, `private: true`, unscoped. Consume via a `file:` dependency until published under a scope.
+This package isn't on the public npm registry yet — it's still private. Until it's published under a proper scope, consume it as a local `file:` dependency.
