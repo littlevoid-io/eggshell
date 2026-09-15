@@ -371,7 +371,7 @@ A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by d
 | T5.3 | `startDev()` / `startProduction()`      | done¹  |
 | T5.4 | `runDoctor()` diagnostics               | done   |
 | T5.5 | CLI bin                                 | todo   |
-| T5.6 | `init` scaffolder                       | todo   |
+| T5.6 | `init` scaffolder                       | done   |
 
 ### T5.1 — `build()`
 
@@ -410,6 +410,10 @@ Two further bugs were found independently — not by the delegated review — vi
 
 Scaffold a consumer project: `eggshell.config.ts`, an Electron main calling `launch`, tsconfig, scripts. Refuse to overwrite existing files.
 **Verify:** run into a temp dir, then build and launch the scaffolded project.
+
+**Done.** `scaffoldProject(options)` writes `eggshell.config.ts`, `src/main.ts`, `package.json`, `tsconfig.json`, `.gitignore` into `options.targetDir`; existing files are reported in `skippedFiles`, never overwritten. `appId`/`productName` default from the target directory's basename; `appId` is validated against the reverse-DNS pattern.
+
+Two real bugs were found only through live verification, neither caught by unit tests or the delegated review: the generated `package.json` originally depended on `"eggshell": "*"` — but `eggshell` is squatted on the public npm registry by an unrelated, unmaintained package, so a real `npm install` in a scaffolded project silently installed the wrong package instead of failing loudly. Fixed by deriving the real local package root via `import.meta.url` (mirroring `roots.ts`'s `derivePackageRoot`) and depending on `file:<absolute-package-root>` instead — verified live end to end: rebuilt eggshell, scaffolded into a fresh temp directory, ran a real `npm install`, confirmed `node_modules/eggshell` was the real local package with real exports, and confirmed `tsc --noEmit` passes against the scaffolded project's generated `main.ts`. Separately, `toSingleQuotedLiteral` escaped backslashes and single quotes but not raw newlines, so a `productName` containing an embedded newline produced a syntactically invalid `eggshell.config.ts`/`main.ts` — confirmed via a real parse attempt, fixed by also escaping `\n`/`\r`.
 
 ---
 
@@ -497,6 +501,7 @@ Tracked in the lead architect's report; summarised here.
 | `912997f` | T3.4 — `launch()` orchestration, completing Phase 3                                                    | 423 tests; ordering tests for the `whenReady()` seam, single-instance short-circuit, and shutdown race                                                                                                                                        |
 | `0d8273d` | `ProcessSupervisor.getHandles()` — closes the T2.8/T2.9 composition gap                                | 430 tests; handle currency across restarts; liveness keyed to spawn, not readiness                                                                                                                                                            |
 | `b1936d8` | T5.4 — `runDoctor()` preflight diagnostics                                                             | 621 tests; live-verified http-readiness port extraction against a real port conflict; independently-found userDataRoot and PowerShell-timeout bugs fixed and re-verified                                                                      |
+| `ae98792` | T5.6 — `scaffoldProject()` init scaffolder                                                             | 629 tests; live end-to-end npm install + tsc against a real scaffolded project; independently-found npm-registry-name-squatting and newline-escaping bugs fixed and re-verified                                                               |
 
 ### Notes carried forward
 
