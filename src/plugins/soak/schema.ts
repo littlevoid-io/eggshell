@@ -4,6 +4,7 @@
 
 import { z } from 'zod';
 import { ConfigError, type ConfigIssue } from '../../errors.js';
+import { positiveInt } from '../../config/numeric.js';
 import { formatIssuePath } from '../../config/validate.js';
 import type { FuzzActionType, SoakConfig } from './types.js';
 
@@ -15,9 +16,6 @@ const DEFAULT_ACTION_TYPES: [FuzzActionType, ...FuzzActionType[]] = [
   'key',
   'scroll',
 ];
-
-const positiveInt = (label: string) =>
-  z.number().int(`${label} must be an integer`).positive(`${label} must be positive`);
 
 export const soakConfigSchema = z
   .object({

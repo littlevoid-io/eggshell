@@ -24,6 +24,7 @@
 import { z } from 'zod';
 
 import { LOG_LEVELS } from '../logging/index.js';
+import { positiveInt, positiveIntMs } from './numeric.js';
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -37,12 +38,6 @@ const portNumber = (label: string) =>
     .int(`${label} must be an integer`)
     .min(1, `${label} must be between 1 and 65535`)
     .max(65535, `${label} must be between 1 and 65535`);
-
-const positiveIntMs = (label: string) =>
-  z
-    .number()
-    .int(`${label} must be an integer number of milliseconds`)
-    .positive(`${label} must be a positive number of milliseconds`);
 
 /**
  * appId becomes the Electron app id and packaging identifier, so a bad value
@@ -209,9 +204,6 @@ const displayRoleRuleSchema = z
       rule.touchCapable !== undefined,
     { message: 'a display role rule must set at least one selector field' }
   );
-
-const positiveInt = (label: string) =>
-  z.number().int(`${label} must be an integer`).positive(`${label} must be a positive number`);
 
 /**
  * Tier 1 (per-topology) and Tier 2 (global rolling-rate) tuning for

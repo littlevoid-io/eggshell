@@ -4,11 +4,9 @@
 
 import { z } from 'zod';
 import { ConfigError, type ConfigIssue } from '../../errors.js';
+import { positiveInt } from '../../config/numeric.js';
 import { formatIssuePath } from '../../config/validate.js';
 import type { OfflineOverlayConfig } from './types.js';
-
-const positiveInt = (label: string) =>
-  z.number().int(`${label} must be an integer`).positive(`${label} must be positive`);
 
 export const offlineConfigSchema = z
   .object({
