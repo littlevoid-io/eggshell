@@ -531,6 +531,7 @@ Tracked in the lead architect's report; summarised here.
 | `330533e` | T6.3 — offline + dashboard plugins enabled                                                             | 656 tests; live-verified real dashboard HTTP status response, real LAN-bind refusal (ECONNREFUSED), and getFailures() == [] proving both plugins' setup() succeeded                                                                                                                         |
 | `1e2b703` | T6.5 — `npm run smoke`, completing Phase 6                                                             | 656 tests; ran the full 8-step smoke suite for real twice in a row (build+doctor+manifest+seeded soak), confirmed full artifact cleanup and no orphaned processes after each run; removed a dead unused parameter found during my own review                                                |
 | `71306af` | T7.4 — soak fuzzer viewport sizing and round-robin targeting                                           | 662 tests; live-verified a real 12-action soak against two real non-default 800x600 windows - all coordinates in-bounds, perfect round-robin alternation; independently-found and fixed an exactOptionalPropertyTypes typecheck error                                                       |
+| `4db9a98` | T7.2 — fixed the readiness-probe abort race behind the intermittent flake                              | 663 tests; root cause deterministically reproduced in a new test (an injected probe rejecting with a non-ReadinessSignalAbortedError on abort), not just inferred; 15 consecutive full-suite runs post-fix, all clean                                                                       |
 
 ### Notes carried forward
 
@@ -572,7 +573,7 @@ Tracked work that blocks nothing and is deliberately not scheduled.
 | ID   | Task                                                             | Status |
 | ---- | ---------------------------------------------------------------- | ------ |
 | T7.1 | Investigate WMI-ordinal to Electron `Display.id` correlation     | todo   |
-| T7.2 | Diagnose intermittent `src/process/` test failure                | todo   |
+| T7.2 | Diagnose intermittent `src/process/` test failure                | done   |
 | T7.3 | Live-verify `startDev()`/`startProduction()` against the example | done   |
 | T7.4 | Soak fuzzer: viewport sizing and single-window targeting         | done   |
 
@@ -590,6 +591,10 @@ Deliverable is a written finding plus a recommendation to keep, fix, or remove t
 Caught while verifying T4.4 (unrelated to it — soak touches none of `src/process/`): `npm test` failed once in 18 consecutive runs, a `ProcessError` assertion mentioning `'my-proc'`, message content not captured before it passed again on retry. Not reproduced in 17 further runs. Smells like a timing-sensitive test (a real timer or real port rather than a fake clock) rather than a logic bug, but that's inference, not a finding.
 
 **Verify:** reproduce reliably (loop `npm test` with output captured on failure, or run the suspect file alone many times with `--reporter=verbose`), identify the exact test and assertion, then fix the flake at its source (almost certainly: inject a fake clock/deterministic port the way the rest of `src/process/` already does) rather than retrying past it.
+
+**Done.** Root cause: `runWithDeadline` (`src/process/readiness.ts`) re-threw any caught error that wasn't literally `instanceof ReadinessSignalAbortedError` — but a probe's own real I/O can reject with a _different_ error shape at the exact moment the combined abort signal fires (the deadline timer and the probe's in-flight rejection racing in the same tick), letting a raw underlying error leak out unwrapped instead of the promised `ProcessError` naming `processId`/`probeKind`/elapsed time. That is exactly the observed symptom (a `ProcessError` assertion mentioning `'my-proc'` failing intermittently). Fixed by also checking `combinedController.signal.aborted`, not just the error's type — if the combined signal is aborted, it's a timeout/abort outcome regardless of what shape of error the probe rejected with.
+
+The fix isn't just inferred: `ReadinessContext` now accepts injectable `probeTcp`/`probeHttp` functions (exported from `src/process/index.ts`), and a new test injects a probe that rejects with a plain `Error` (not `ReadinessSignalAbortedError`) on abort — reproducing the exact race deterministically — and asserts the result is still a `ProcessError` naming `'my-proc'`. That test fails under the old code. Several existing tests that raced a real `setTimeout(60)` against a real server starting late were converted to fake-clock + injected-probe determinism (matching `src/layout/supervisor.test.ts`'s established pattern); a few deliberately keep real `net`/`http` servers for genuine end-to-end coverage of the real probe implementations. Verified with 15 consecutive full-suite runs post-fix, all clean.
 
 ### T7.3 — Live-verify `startDev()`/`startProduction()` against the example
 
