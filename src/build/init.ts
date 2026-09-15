@@ -62,8 +62,8 @@ function resolveDefaults(options: ScaffoldOptions): {
   packageName: string;
 } {
   const slug = sanitizeSlug(options.targetDir);
-  const baseName = path.basename(path.resolve(options.targetDir)).trim();
-  const productName = options.productName?.trim() || baseName || 'eggshell-kiosk';
+  const name = path.basename(path.resolve(options.targetDir)).trim();
+  const productName = options.productName?.trim() || name || 'eggshell-kiosk';
 
   if (options.appId !== undefined && !APP_ID_PATTERN.test(options.appId)) {
     throw new BuildError(

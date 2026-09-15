@@ -15,9 +15,9 @@ export class ReportCollector {
   private readonly seed: number;
   private readonly startedAt: number;
   private stoppedAt?: number;
-  private readonly actionsList: FuzzAction[] = [];
-  private readonly crashesList: CrashReport[] = [];
-  private readonly errorsList: ConsoleMessageReport[] = [];
+  private readonly actions: FuzzAction[] = [];
+  private readonly crashes: CrashReport[] = [];
+  private readonly errors: ConsoleMessageReport[] = [];
 
   constructor(seed: number, startedAt: number = Date.now()) {
     this.seed = seed;
@@ -25,15 +25,15 @@ export class ReportCollector {
   }
 
   recordAction(action: FuzzAction): void {
-    this.actionsList.push(action);
+    this.actions.push(action);
   }
 
   recordCrash(crash: CrashReport): void {
-    this.crashesList.push(crash);
+    this.crashes.push(crash);
   }
 
   recordError(error: ConsoleMessageReport): void {
-    this.errorsList.push(error);
+    this.errors.push(error);
   }
 
   markStopped(timestamp: number = Date.now()): void {
@@ -45,23 +45,23 @@ export class ReportCollector {
       seed: this.seed,
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
-      completedActions: this.actionsList.length,
-      actions: [...this.actionsList],
-      crashes: [...this.crashesList],
-      errors: [...this.errorsList],
+      completedActions: this.actions.length,
+      actions: [...this.actions],
+      crashes: [...this.crashes],
+      errors: [...this.errors],
     };
   }
 
   getActionCount(): number {
-    return this.actionsList.length;
+    return this.actions.length;
   }
 
   getCrashCount(): number {
-    return this.crashesList.length;
+    return this.crashes.length;
   }
 
   getErrorCount(): number {
-    return this.errorsList.length;
+    return this.errors.length;
   }
 }
 

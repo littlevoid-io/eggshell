@@ -23,51 +23,51 @@ function extractHttpPort(urlStr: string): number | undefined {
   }
 }
 
-function extractProcessPorts(processes: unknown[], portSet: Set<number>): void {
+function extractProcessPorts(processes: unknown[], ports: Set<number>): void {
   for (const proc of processes) {
     if (typeof proc !== 'object' || proc === null) continue;
     const p = proc as Record<string, unknown>;
     if (Array.isArray(p.requirePortsFree)) {
       for (const port of p.requirePortsFree) {
-        if (typeof port === 'number') portSet.add(port);
+        if (typeof port === 'number') ports.add(port);
       }
     }
     if (typeof p.readiness === 'object' && p.readiness !== null) {
       const r = p.readiness as Record<string, unknown>;
       if (r.kind === 'tcp' && typeof r.port === 'number') {
-        portSet.add(r.port);
+        ports.add(r.port);
       } else if (r.kind === 'http' && typeof r.url === 'string') {
         const port = extractHttpPort(r.url);
-        if (port !== undefined) portSet.add(port);
+        if (port !== undefined) ports.add(port);
       }
     }
   }
 }
 
-function extractPluginPorts(plugins: Record<string, unknown>, portSet: Set<number>): void {
+function extractPluginPorts(plugins: Record<string, unknown>, ports: Set<number>): void {
   if (typeof plugins.dashboard === 'object' && plugins.dashboard !== null) {
     const d = plugins.dashboard as Record<string, unknown>;
     if (d.enabled !== false) {
-      portSet.add(typeof d.port === 'number' ? d.port : 3005);
+      ports.add(typeof d.port === 'number' ? d.port : 3005);
     }
   }
 }
 
 function extractPortsFromConfig(config: unknown, extraPorts?: readonly number[]): number[] {
-  const portSet = new Set<number>();
+  const ports = new Set<number>();
   if (extraPorts) {
-    for (const port of extraPorts) portSet.add(port);
+    for (const port of extraPorts) ports.add(port);
   }
   if (typeof config === 'object' && config !== null) {
     const raw = config as Record<string, unknown>;
     if (Array.isArray(raw.processes)) {
-      extractProcessPorts(raw.processes, portSet);
+      extractProcessPorts(raw.processes, ports);
     }
     if (typeof raw.plugins === 'object' && raw.plugins !== null) {
-      extractPluginPorts(raw.plugins as Record<string, unknown>, portSet);
+      extractPluginPorts(raw.plugins as Record<string, unknown>, ports);
     }
   }
-  return Array.from(portSet);
+  return Array.from(ports);
 }
 
 interface PortScanResult {

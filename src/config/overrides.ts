@@ -100,21 +100,21 @@ function mergeValue(base: unknown, override: unknown): unknown {
   }
 
   if (isPlainObject(override)) {
-    const baseObject = isPlainObject(base) ? base : undefined;
+    const target = isPlainObject(base) ? base : undefined;
     const merged: Record<string, unknown> = {};
-    if (baseObject) {
-      for (const key of Object.keys(baseObject)) {
+    if (target) {
+      for (const key of Object.keys(target)) {
         if (DANGEROUS_KEYS.has(key)) {
           continue;
         }
-        merged[key] = cloneJsonValue(baseObject[key]);
+        merged[key] = cloneJsonValue(target[key]);
       }
     }
     for (const key of Object.keys(override)) {
       if (DANGEROUS_KEYS.has(key)) {
         continue;
       }
-      merged[key] = mergeValue(baseObject ? baseObject[key] : undefined, override[key]);
+      merged[key] = mergeValue(target ? target[key] : undefined, override[key]);
     }
     return merged;
   }

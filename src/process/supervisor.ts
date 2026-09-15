@@ -473,8 +473,8 @@ function handleExit(ctx: SupervisorContext, record: ProcessRecord, crashed: bool
   scheduleRestart(ctx, record);
 }
 
-function computeBackoffMs(restart: ProcessConfig['restart'], attemptNumber: number): number {
-  const grown = restart.backoffMs * restart.backoffMultiplier ** (attemptNumber - 1);
+function computeBackoffMs(restart: ProcessConfig['restart'], attempt: number): number {
+  const grown = restart.backoffMs * restart.backoffMultiplier ** (attempt - 1);
   return Math.min(grown, restart.maxBackoffMs);
 }
 

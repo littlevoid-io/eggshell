@@ -491,8 +491,8 @@ function beginHandlingFailure(ctx: WatchdogContext, windowId: string, reason: st
   scheduleAttempt(ctx, record);
 }
 
-function computeBackoffMs(ctx: WatchdogContext, attemptNumber: number): number {
-  const grown = ctx.backoffMs * ctx.backoffMultiplier ** (attemptNumber - 1);
+function computeBackoffMs(ctx: WatchdogContext, attempt: number): number {
+  const grown = ctx.backoffMs * ctx.backoffMultiplier ** (attempt - 1);
   return Math.min(grown, ctx.maxBackoffMs);
 }
 
