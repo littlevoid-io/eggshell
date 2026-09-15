@@ -370,7 +370,7 @@ A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by d
 | T5.2 | Launch manifest (versioned)             | done   |
 | T5.3 | `startDev()` / `startProduction()`      | done¹  |
 | T5.4 | `runDoctor()` diagnostics               | done   |
-| T5.5 | CLI bin                                 | todo   |
+| T5.5 | CLI bin                                 | done   |
 | T5.6 | `init` scaffolder                       | done   |
 
 ### T5.1 — `build()`
@@ -405,6 +405,12 @@ Two further bugs were found independently — not by the delegated review — vi
 
 `src/cli/bin.ts` — the **only** file permitted to call `process.exit` (I6). Thin arg parsing over T5.1-T5.4; catches `EggshellError` and prints `code` + field paths, unknown errors with a stack. Commands: `dev`, `build`, `start`, `doctor`, `init`.
 **Verify:** `npx eggshell doctor` exits 0 on a healthy example and non-zero on a forced failure; `--help` for each command.
+
+**Done.** Five commands (`dev`, `build`, `start`, `doctor`, `init`), each a thin wrapper split into its own file under `src/cli/commands/`, plus shared helpers (`config-loader.ts` locates and dynamically imports `eggshell.config.{ts,mjs,js}` through `validateConfig()`; `roots.ts` derives a per-platform default `userDataRoot` from `productName`, mirroring Electron's own `app.getPath('userData')` convention; `manifest-search.ts` locates `eggshell.launch.json` via a single non-recursive scan of `<projectRoot>/release/`'s immediate subdirectories; `error-format.ts`/`termination.ts`/`usage.ts`). `package.json`'s `bin` and `./cli` export are now wired (deliberately deferred until this task, per the earlier note in this file).
+
+Found and fixed one real bug during my own live verification, after the implementation job that wrote this timed out mid-report before reaching its own end-to-end check: `dev`/`start` always returned CLI exit code 0 regardless of whether the supervised app actually crashed, because `waitForTermination` discarded the child's real `ProcessExit`. Since this package's entire purpose is being a startup executable a provisioning tool (ZipTie) can monitor, a wrong exit code on crash is a real correctness bug. Fixed so a deliberate stop (SIGINT/SIGTERM to the CLI itself) or a clean exit (code 0) is CLI exit 0, and anything else (a nonzero code, or an external kill) is 1.
+
+Live-verified end to end: built the real CLI, ran `init` to scaffold a fresh consumer, `npm install`ed it for real, ran `doctor` against it twice — once clean (all 9 real checks against this actual machine, overall `WARN`, exit 0) and once with a real port forced into conflict (the specific check `FAIL`s, overall `FAIL`, exit 1) — and confirmed global `--help`, per-command `--help`, no-command, and an unknown flag all exit and route stdout/stderr correctly.
 
 ### T5.6 — `init`
 
@@ -502,6 +508,7 @@ Tracked in the lead architect's report; summarised here.
 | `0d8273d` | `ProcessSupervisor.getHandles()` — closes the T2.8/T2.9 composition gap                                | 430 tests; handle currency across restarts; liveness keyed to spawn, not readiness                                                                                                                                                            |
 | `b1936d8` | T5.4 — `runDoctor()` preflight diagnostics                                                             | 621 tests; live-verified http-readiness port extraction against a real port conflict; independently-found userDataRoot and PowerShell-timeout bugs fixed and re-verified                                                                      |
 | `ae98792` | T5.6 — `scaffoldProject()` init scaffolder                                                             | 629 tests; live end-to-end npm install + tsc against a real scaffolded project; independently-found npm-registry-name-squatting and newline-escaping bugs fixed and re-verified                                                               |
+| `b203eb9` | T5.5 — CLI bin, completing Phase 5                                                                     | 654 tests; live end-to-end init+install+doctor(pass/fail via forced port conflict)+--help against a real scaffolded consumer; independently-found dev/start-always-exits-0-on-crash bug fixed and re-verified                                 |
 
 ### Notes carried forward
 
