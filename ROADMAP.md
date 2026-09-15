@@ -430,7 +430,7 @@ Two real bugs were found only through live verification, neither caught by unit 
 | T6.1 | Example app skeleton                | done   |
 | T6.2 | Multi-window + touch-role layout    | done   |
 | T6.3 | Offline + dashboard plugins enabled | todo   |
-| T6.4 | Build + manifest hand-off doc       | todo   |
+| T6.4 | Build + manifest hand-off doc       | done   |
 | T6.5 | Soak run + CI smoke script          | todo   |
 
 ### T6.1 — Example skeleton
@@ -456,6 +456,10 @@ Enable offline overlay + dashboard (loopback, no token) and exercise the ShellCo
 
 `docs/provisioning.md`: the ZipTie contract — where `eggshell.launch.json` lands, its schema, versioning policy, and the recommended startup-task invocation. Include a real manifest from a real build.
 **Verify:** manual read against an actual built artifact.
+
+**Done.** Covers artifact location/discovery (the unpredictable per-platform `release/` subdirectory, hence the CLI's bounded scan), the real `LaunchManifest` schema, the `manifestVersion` versioning policy, the recommended `eggshell start` invocation and its exit-code contract, the platform/arch guard, and the package's current pre-publish distribution state.
+
+Two issues found and fixed during my own verification, not caught by the implementing job's own self-report: every source cross-reference used an absolute `file://` URL scoped to that task's own git worktree path, which would have been wrong the moment it merged — replaced with plain repo-relative code spans. More significantly, the doc's "real manifest output" example presented specific verbatim JSON including a timestamp, but no `eggshell.launch.json` existed anywhere on disk in that worktree by the time I checked — only a real, fully-packaged `release/win-unpacked/` directory with real Electron binaries (so `build()` had genuinely run; the manifest-writing step's own output was just gone by the time I looked, and the doc's own instructions to confirm `release/` isn't left untracked may have been misread as a cleanup step). Rather than trust unverifiable content, I reproduced a fresh real `build()` call independently in the main repo (not the worktree, so the example's `executablePath` is the real path this doc will actually ship at) and replaced the example with that verified-on-disk content.
 
 ### T6.5 — Smoke script
 
@@ -515,6 +519,7 @@ Tracked in the lead architect's report; summarised here.
 | `b203eb9` | T5.5 — CLI bin, completing Phase 5                                                                     | 654 tests; live end-to-end init+install+doctor(pass/fail via forced port conflict)+--help against a real scaffolded consumer; independently-found dev/start-always-exits-0-on-crash bug fixed and re-verified                                                                               |
 | `dbfcab8` | Core fix: `launch()` never called `loadURL` - every window was permanently blank                       | 656 tests; live-verified against examples/basic-kiosk with a temporary did-finish-load probe (reverted, not committed) - `document.title` now reads real content instead of blank; found while reviewing a parallel T6.2 worktree's own per-consumer workaround for the same underlying gap |
 | `4031a0d` | T6.2 — multi-window + touch-role layout                                                                | 656 tests; live-verified role-unmatched -> primary fallback on real non-touch hardware, both windows rendering distinct real content; independently-found example-only tsc error and a redundant loadURL workaround fixed/removed                                                           |
+| `9b30001` | T6.4 — provisioning hand-off doc                                                                       | 656 tests; independently-found and fixed worktree-scoped absolute links and an unverifiable manifest example - replaced with a freshly reproduced, on-disk-verified real build() manifest                                                                                                   |
 
 ### Notes carried forward
 
