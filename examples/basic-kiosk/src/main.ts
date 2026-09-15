@@ -1,5 +1,7 @@
 import { app, BrowserWindow, screen, ipcMain } from 'electron';
 import { launch, resolveRoots, systemClock } from 'eggshell';
+import { createOfflinePlugin } from 'eggshell/plugins/offline';
+import { createDashboardPlugin } from 'eggshell/plugins/dashboard';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as path from 'node:path';
 
@@ -63,6 +65,10 @@ app.whenReady().then(async () => {
       // Inactive third window: see spanAllKioskExample above.
       // ...(false ? [spanAllKioskExample] : []),
     ],
+    plugins: {
+      offline: { enabled: true },
+      dashboard: { enabled: true, host: '127.0.0.1' },
+    },
   };
 
   const roots = resolveRoots({
@@ -81,6 +87,7 @@ app.whenReady().then(async () => {
       preloadPath,
       clock: systemClock,
       isDevelopment: true,
+      plugins: [createOfflinePlugin(), createDashboardPlugin()],
     });
 
     // Log success
