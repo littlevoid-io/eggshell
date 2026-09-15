@@ -441,6 +441,18 @@ function buildWindows(
     applyPermissionHandlers(window.native.webContents.session, shellConfig.permissions, logger);
     applyNavigationGuards(window.native.webContents, allowedOriginsFor(windowConfig.url), logger);
 
+    // Fire-and-forget: a kiosk shell must never block startup on content
+    // loading (a slow/unreachable URL is exactly the failure mode this
+    // package's founding lockup story warns against). The window is created
+    // and placed regardless; a load failure is logged, not thrown.
+    void window.native.loadURL(windowConfig.url).catch((error: unknown) => {
+      logger.error('launch: failed to load window content', {
+        windowId: window.id,
+        url: windowConfig.url,
+        error: describeError(error),
+      });
+    });
+
     if (windowConfig.showWhenReady) {
       window.native.show();
     }
