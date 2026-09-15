@@ -1,4 +1,4 @@
-# Egg Shell 🐣
+# Egg Shell
 
 A library for building Electron kiosk apps. It handles window management, multi-display layout, and process supervision, and comes with a CLI and a few optional plugins. Call `launch(config)` from your Electron main file and it takes care of the rest.
 
@@ -27,9 +27,10 @@ Check out [`examples/basic-kiosk`](examples/basic-kiosk) for a working example.
 
 `eggshell <dev|build|start|doctor|init>` reads your `eggshell.config.{ts,mjs,js}` file. Add `--help` to any command to see its options.
 
-## How it works
+## Docs
 
-You always tell eggshell where things are — it never goes looking for a project root on its own. See [`docs/architecture.md`](docs/architecture.md) for how it's put together, and [`docs/provisioning.md`](docs/provisioning.md) if you're hooking up an external provisioning tool.
+- [`docs/architecture.md`](docs/architecture.md) — how it's put together
+- [`docs/provisioning.md`](docs/provisioning.md) — hooking up an external provisioning tool
 
 ## Development
 
