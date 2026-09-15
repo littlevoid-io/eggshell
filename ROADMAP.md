@@ -429,7 +429,7 @@ Two real bugs were found only through live verification, neither caught by unit 
 | ---- | ----------------------------------- | ------ |
 | T6.1 | Example app skeleton                | done   |
 | T6.2 | Multi-window + touch-role layout    | done   |
-| T6.3 | Offline + dashboard plugins enabled | todo   |
+| T6.3 | Offline + dashboard plugins enabled | done   |
 | T6.4 | Build + manifest hand-off doc       | done   |
 | T6.5 | Soak run + CI smoke script          | todo   |
 
@@ -451,6 +451,10 @@ Live-verified on this machine's real (non-touch) 2-display hardware: `role-unmat
 
 Enable offline overlay + dashboard (loopback, no token) and exercise the ShellContext registries.
 **Verify:** overlay appears when the reachability target is blocked; dashboard reachable on `127.0.0.1` and refused from a LAN address.
+
+**Done.** `examples/basic-kiosk` registers both plugins via `launch({ plugins: [createOfflinePlugin(), createDashboardPlugin()] })`, with `plugins.offline`/`plugins.dashboard` config slices; dashboard stays on its default `127.0.0.1` host, no token.
+
+Live-verified against a real running instance: `GET http://127.0.0.1:3005/api/status` returned real live status JSON (including both T6.2 windows with their real loaded `file://` URLs); a real TCP connect to this machine's actual LAN IP on port 3005 got a real `ECONNREFUSED`, proving genuine loopback binding, not just configuration; `result.pluginRegistry.getFailures()` returned `[]` after a real launch, directly proving neither plugin's `setup()` threw (no visual overlay check was possible from the CLI, but this is stronger, direct evidence than inferring from a log line).
 
 ### T6.4 — Manifest hand-off doc
 
@@ -520,6 +524,7 @@ Tracked in the lead architect's report; summarised here.
 | `dbfcab8` | Core fix: `launch()` never called `loadURL` - every window was permanently blank                       | 656 tests; live-verified against examples/basic-kiosk with a temporary did-finish-load probe (reverted, not committed) - `document.title` now reads real content instead of blank; found while reviewing a parallel T6.2 worktree's own per-consumer workaround for the same underlying gap |
 | `4031a0d` | T6.2 — multi-window + touch-role layout                                                                | 656 tests; live-verified role-unmatched -> primary fallback on real non-touch hardware, both windows rendering distinct real content; independently-found example-only tsc error and a redundant loadURL workaround fixed/removed                                                           |
 | `9b30001` | T6.4 — provisioning hand-off doc                                                                       | 656 tests; independently-found and fixed worktree-scoped absolute links and an unverifiable manifest example - replaced with a freshly reproduced, on-disk-verified real build() manifest                                                                                                   |
+| `330533e` | T6.3 — offline + dashboard plugins enabled                                                             | 656 tests; live-verified real dashboard HTTP status response, real LAN-bind refusal (ECONNREFUSED), and getFailures() == [] proving both plugins' setup() succeeded                                                                                                                         |
 
 ### Notes carried forward
 
