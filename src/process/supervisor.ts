@@ -1,96 +1,33 @@
 /**
- * Multi-process supervisor with restart policy (T2.8, Requirement 9).
+ * Multi-process supervisor with restart policy. One `processes[]` list
+ * filtered by `phase` (`dev` runs dev+always, `production` runs
+ * production+always) -- no special-cased dev server slot.
  *
- * The predecessor had a single hardcoded "server" slot plus a separate
- * "dev server" concept, no restart policy, and no port pre-check.
- * `createProcessSupervisor` replaces all of that with **one** `processes[]`
- * filtered by `phase` (`dev` runs `dev` + `always`; `production` runs
- * `production` + `always`) — there is no special-cased dev server.
+ * Per process, in config order: `assertPortsFree` -> spawn -> readiness. A
+ * failure at any step fails `start()` loudly, naming the process; later
+ * processes are left `pending`. Once `ready`, exit is governed by
+ * `restart.policy`: `never`, `onCrash` (non-zero exit or signal, not a clean
+ * exit), or `always`. Backoff grows from `backoffMs` by `backoffMultiplier`,
+ * capped at `maxBackoffMs`, for at most `maxRestarts` attempts; exhausting
+ * it moves the process to the terminal `failed` state. A restart attempt
+ * that itself fails to become ready is treated the same as a crash -- same
+ * bounded retry path, not a separate unbounded one.
  *
- * Per process, in config order: `assertPortsFree` (T2.5) -> spawn (T2.6) ->
- * `waitForReadiness` (T2.7). A failure at any step fails `start()` loudly,
- * naming the process and why (a port conflict or a readiness timeout each
- * already name the process id — see `port.ts`/`readiness.ts`); processes
- * later in config order are left `pending`.
- *
- * Once a process reaches `ready`, its exit is governed by `restart.policy`:
- * `never` (no restart), `onCrash` (restart on a non-zero exit code or a
- * signal, not on a clean exit), `always` (restart unconditionally).
- * Restart delay backs off from `backoffMs` by `backoffMultiplier`, capped at
- * `maxBackoffMs`, for at most `maxRestarts` attempts; exhausting the budget
- * logs once at `error` and moves the process to the terminal `failed` state.
- * A restart attempt that itself fails to become ready (its own port conflict,
- * spawn failure, or readiness timeout) is treated the same as a crash — it
- * consumes one restart attempt and is retried under the same backoff/cap,
- * rather than being a separate, unbounded retry path.
- *
- * ## Restart budgets are per process, never shared
- *
- * `src/layout/supervisor.ts` documents a real bug: a single counter shared
- * across "whatever is currently being attempted" was reset by activity
- * belonging to a *different* subject (a different display topology), which
- * defeated its circuit breaker under an A/B flap. The equivalent mistake here
- * would be a shared restart counter touched by more than one process.
- *
- * That mistake is structurally impossible in this file: each process gets
- * its own `ProcessRecord` (`restartCount`, `restartTimer`, `resetTimer`) the
- * moment the supervisor is constructed, keyed by process id, and every
- * restart function takes the specific `record` to act on as a parameter —
- * there is no shared counter anywhere for one process's exits to touch
- * another's. Test 13 asserts this directly: one process exhausting its
- * budget leaves an unrelated process's counter, and its running state,
- * untouched.
- *
- * ## No global restart ceiling (deliberate)
- *
- * The window supervisor also needed a Tier-2 global-rate ceiling, because a
- * flap through more distinct topologies than its bounded ledger can hold
- * evicts a given-up entry and "forgets" it — the per-topology cap alone is
- * defeatable by *identity* churn. There is no equivalent identity churn here:
- * a process's id never changes over its lifetime, so its ledger entry (this
- * file has exactly one process record per id, unbounded in count only by how
- * many processes are configured) can never be evicted or forgotten. Every
- * process's own `maxRestarts` cap is therefore already an absolute, permanent
- * ceiling on that process — nothing can reopen it.
- *
- * A global ceiling was still considered, for the case of many processes each
- * independently crash-looping within their own budgets. It was rejected:
- * every restart is already gated by a real, growing backoff delay (never
- * zero-cost) and a real child-process spawn (never free), so many processes
- * crash-looping at once is bounded work, not a tight loop pegging the event
- * loop the way an unthrottled retry can. A global ceiling would also silently
- * override `resetAfterMs`, which exists specifically so a process configured
- * to auto-heal indefinitely (crashing rarely, well above `resetAfterMs`
- * apart) keeps being restarted forever — see the next section. Capping that
- * globally would surprise an operator who explicitly asked for exactly that
- * behaviour.
- *
- * ## `resetAfterMs`: armed on ready, cancelled on exit
- *
- * `resetAfterMs` clears `restartCount` after a process has stayed `ready`
- * that long, so a process that crashes rarely never exhausts its budget. The
- * timer for this MUST be cancelled the instant the process exits, not left
- * to fire later: if it were left pending, a stale timer armed during an
- * earlier, short-lived `ready` period could fire *during a later, genuine
- * rapid crash loop* and wipe out a restart count that has nothing to do with
- * that earlier healthy run — the exact "unrelated activity resets my
- * counter" failure mode from the window supervisor, just via a stale timer
- * instead of a shared variable. `monitorProcess` below cancels the reset
- * timer as the very first thing it does on every exit path, before any
- * restart-policy decision, so only a timer belonging to the *current* ready
- * period can ever fire.
- *
- * Chosen semantics for a "slow flap" — a process that crashes repeatedly but
- * always stays `ready` for slightly *more* than `resetAfterMs` first: this
- * restarts it forever, by design, not as an oversight. `resetAfterMs` is the
- * operator's own definition of "stayed up long enough to count as healthy";
- * a process that clears that bar every single cycle is, by the config
- * author's own chosen threshold, healthy each time it crashes, and each
- * restart is still rate-limited to roughly one per `resetAfterMs` (plus
- * backoff) — this is not a tight, CPU-pegging loop, just an unbounded count
- * of restarts over an unbounded amount of wall-clock time. Test
- * "resetAfterMs: a slow flap ... keeps restarting forever" below asserts
- * exactly this.
+ * - Restart budgets are per-process, never shared: each gets its own
+ *   `ProcessRecord` keyed by id, so one process exhausting its budget can
+ *   never touch another's counter.
+ * - Deliberately no global (Tier-2) restart ceiling, unlike
+ *   layout/supervisor.ts and shell/watchdog.ts: a process id never changes,
+ *   so its ledger entry can never be evicted/forgotten the way a bounded
+ *   topology/window ledger can -- `maxRestarts` alone is already a
+ *   permanent, un-reopenable ceiling. A global ceiling was rejected because
+ *   it would also override `resetAfterMs` for a process explicitly
+ *   configured to auto-heal indefinitely.
+ * - `resetAfterMs` clears `restartCount` after a sustained `ready` period,
+ *   and its timer MUST be cancelled first on every exit path -- a stale
+ *   timer left pending from an earlier healthy spell could otherwise fire
+ *   mid-crash-loop and wipe out an unrelated count. A process that always
+ *   recovers just past `resetAfterMs` restarts forever, by design.
  */
 
 import type { Clock, TimerHandle } from '../clock.js';
