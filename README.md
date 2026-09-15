@@ -26,7 +26,7 @@ See [`examples/basic-kiosk`](examples/basic-kiosk) for a full consumer.
 
 ## How it works
 
-Every root (`projectRoot`, `userDataRoot`) is an explicit input — nothing is discovered by walking the filesystem. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for layering/invariants, [`ROADMAP.md`](ROADMAP.md) for spec/status, [`docs/provisioning.md`](docs/provisioning.md) for the build-manifest contract.
+Every root (`projectRoot`, `userDataRoot`) is an explicit input — nothing is discovered by walking the filesystem. See [`docs/architecture.md`](docs/architecture.md) for layering/invariants and [`docs/provisioning.md`](docs/provisioning.md) for the build-manifest contract.
 
 ## Development
 
