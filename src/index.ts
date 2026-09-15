@@ -80,3 +80,5 @@ export type {
   PortCheckFn,
   AssetExistsFn,
 } from './build/doctor.js';
+export { scaffoldProject } from './build/init.js';
+export type { ScaffoldOptions, ScaffoldResult } from './build/init.js';
