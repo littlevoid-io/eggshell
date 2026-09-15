@@ -70,4 +70,34 @@ describe('ActionGenerator (T4.4)', () => {
       expect(details.y).toBeLessThanOrEqual(600);
     }
   });
+
+  it('constrains coordinate generation to per-call viewport bounds', () => {
+    const generator = new ActionGenerator({
+      random: new Mulberry32Generator(99),
+      actionTypes: ['click', 'move'],
+    });
+
+    for (let i = 0; i < 50; i++) {
+      const action = generator.nextAction('win-1', 1000 + i, 800, 600);
+      const details = action.details as ClickDetails | MoveDetails;
+      expect(details.x).toBeGreaterThanOrEqual(0);
+      expect(details.x).toBeLessThanOrEqual(800);
+      expect(details.y).toBeGreaterThanOrEqual(0);
+      expect(details.y).toBeLessThanOrEqual(600);
+    }
+  });
+
+  it('produces identical action sequence for identical seeds with per-call viewport', () => {
+    const generatorA = new ActionGenerator({ random: new Mulberry32Generator(100) });
+    const generatorB = new ActionGenerator({ random: new Mulberry32Generator(100) });
+
+    const actionsA = Array.from({ length: 15 }, (_, i) =>
+      generatorA.nextAction('win-1', 1000 + i, 800, 600)
+    );
+    const actionsB = Array.from({ length: 15 }, (_, i) =>
+      generatorB.nextAction('win-1', 1000 + i, 800, 600)
+    );
+
+    expect(actionsA).toEqual(actionsB);
+  });
 });

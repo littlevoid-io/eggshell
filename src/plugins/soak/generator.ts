@@ -42,10 +42,19 @@ export class ActionGenerator {
     this.viewportHeight = options.viewportHeight ?? DEFAULT_VIEWPORT_HEIGHT;
   }
 
-  nextAction(windowId: string, timestamp: number = Date.now()): FuzzAction {
+  nextAction(
+    windowId: string,
+    timestamp: number = Date.now(),
+    viewportWidth?: number,
+    viewportHeight?: number
+  ): FuzzAction {
     this.stepCount++;
+    const width =
+      viewportWidth !== undefined && viewportWidth > 0 ? viewportWidth : this.viewportWidth;
+    const height =
+      viewportHeight !== undefined && viewportHeight > 0 ? viewportHeight : this.viewportHeight;
     const type = this.random.pick(this.actionTypes);
-    const details = this.generateDetails(type);
+    const details = this.generateDetails(type, width, height);
     return {
       step: this.stepCount,
       timestamp,
@@ -59,12 +68,12 @@ export class ActionGenerator {
     return this.stepCount;
   }
 
-  private generateDetails(type: FuzzActionType): FuzzActionDetails {
+  private generateDetails(type: FuzzActionType, width: number, height: number): FuzzActionDetails {
     if (type === 'click') {
-      return this.createClick();
+      return this.createClick(width, height);
     }
     if (type === 'move') {
-      return this.createMove();
+      return this.createMove(width, height);
     }
     if (type === 'key') {
       return this.createKey();
@@ -72,18 +81,18 @@ export class ActionGenerator {
     return this.createScroll();
   }
 
-  private createClick(): ClickDetails {
+  private createClick(width: number, height: number): ClickDetails {
     return {
-      x: this.random.nextInt(0, this.viewportWidth),
-      y: this.random.nextInt(0, this.viewportHeight),
+      x: this.random.nextInt(0, width),
+      y: this.random.nextInt(0, height),
       button: this.random.next() > 0.5 ? 'right' : 'left',
     };
   }
 
-  private createMove(): MoveDetails {
+  private createMove(width: number, height: number): MoveDetails {
     return {
-      x: this.random.nextInt(0, this.viewportWidth),
-      y: this.random.nextInt(0, this.viewportHeight),
+      x: this.random.nextInt(0, width),
+      y: this.random.nextInt(0, height),
     };
   }
 

@@ -118,9 +118,10 @@ function startFuzzTimer(
   seed: number,
   stop: () => Promise<void>
 ): NodeJS.Timeout {
+  let targetIndex = 0;
   return setInterval(() => {
     if (!isRunning()) return;
-    executeFuzzStep(context, config, generator, collector, monitor);
+    targetIndex = executeFuzzStep(context, config, generator, collector, monitor, targetIndex);
     context.status.publish(buildSoakState(collector, isRunning(), seed));
     if (config.maxActions !== undefined && collector.getActionCount() >= config.maxActions) {
       void stop();

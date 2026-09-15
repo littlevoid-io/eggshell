@@ -51,13 +51,17 @@ function createMockContext(
   return { context, ipcHandlers, commandHandlers, publishedStatuses };
 }
 
-function createMockWindow(): {
+function createMockWindow(bounds = { x: 0, y: 0, width: 800, height: 600 }): {
   window: BrowserWindow;
   executeMock: ReturnType<typeof vi.fn>;
 } {
   const executeMock = vi.fn().mockResolvedValue(undefined);
   const webContents = { executeJavaScript: executeMock, on: vi.fn(), removeListener: vi.fn() };
-  return { window: { webContents } as unknown as BrowserWindow, executeMock };
+  const window = {
+    webContents,
+    getContentBounds: vi.fn().mockReturnValue(bounds),
+  } as unknown as BrowserWindow;
+  return { window, executeMock };
 }
 
 describe('soak plugin (T4.4)', () => {
