@@ -69,3 +69,14 @@ export type { DevOptions } from './build/dev.js';
 export { startProduction } from './build/start.js';
 export type { ProductionOptions } from './build/start.js';
 export type { StartHandle } from './build/runner.js';
+export { runDoctor, aggregateDoctorStatus } from './build/doctor.js';
+export type {
+  DoctorStatus,
+  DoctorCheck,
+  DoctorReport,
+  DoctorOptions,
+  GetDisplaysFn,
+  ResolveElectronFn,
+  PortCheckFn,
+  AssetExistsFn,
+} from './build/doctor.js';
