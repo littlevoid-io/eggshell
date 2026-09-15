@@ -46,3 +46,44 @@ export async function writeManifest(
   const outPath = path.join(targetDir, 'eggshell.launch.json');
   await writeFunc(outPath, JSON.stringify(parsed.data, null, 2) + '\n');
 }
+
+function parseManifestJson(content: string, manifestPath: string): unknown {
+  try {
+    return JSON.parse(content);
+  } catch (error) {
+    throw new BuildError(
+      `Launch manifest at ${manifestPath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
+}
+
+export function validateManifestData(data: unknown, manifestPath: string): LaunchManifest {
+  const parsed = manifestSchema.safeParse(data);
+  if (!parsed.success) {
+    const lines = parsed.error.issues.map(
+      issue => `  - ${formatIssuePath(issue.path)}: ${issue.message}`
+    );
+    throw new BuildError(`Invalid launch manifest at ${manifestPath}:\n${lines.join('\n')}`);
+  }
+  if (!path.isAbsolute(parsed.data.executablePath)) {
+    throw new BuildError(
+      `executablePath in manifest at ${manifestPath} must be absolute, got: ${parsed.data.executablePath}`
+    );
+  }
+  return parsed.data;
+}
+
+export async function readManifest(manifestPath: string): Promise<LaunchManifest> {
+  let content: string;
+  try {
+    content = await fs.readFile(manifestPath, 'utf8');
+  } catch (error) {
+    throw new BuildError(
+      `Failed to read launch manifest at ${manifestPath}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
+  return validateManifestData(parseManifestJson(content, manifestPath), manifestPath);
+}
+

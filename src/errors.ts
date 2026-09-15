@@ -30,6 +30,10 @@ export class BuildError extends EggshellError {
   readonly code = 'ERR_EGGSHELL_BUILD';
 }
 
+export class LaunchError extends EggshellError {
+  readonly code = 'ERR_EGGSHELL_LAUNCH';
+}
+
 interface ProcessErrorOptions extends EggshellErrorOptions {
   processId?: string;
 }

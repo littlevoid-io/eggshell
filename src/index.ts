@@ -11,6 +11,7 @@ export {
   EggshellError,
   LayoutError,
   BuildError,
+  LaunchError,
   ProcessError,
   PluginError,
   ConfigError,
@@ -61,4 +62,10 @@ export type { Clock } from './clock.js';
 
 export { build } from './build/build.js';
 export type { BuildOptions, BuildResult } from './build/build.js';
+export { readManifest } from './build/manifest.js';
 export type { LaunchManifest } from './build/manifest.js';
+export { startDev } from './build/dev.js';
+export type { DevOptions } from './build/dev.js';
+export { startProduction } from './build/start.js';
+export type { ProductionOptions } from './build/start.js';
+export type { StartHandle } from './build/runner.js';

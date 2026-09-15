@@ -368,7 +368,7 @@ A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by d
 | ---- | --------------------------------------- | ------ |
 | T5.1 | `build()` via electron-builder Node API | done   |
 | T5.2 | Launch manifest (versioned)             | done   |
-| T5.3 | `startDev()` / `startProduction()`      | todo   |
+| T5.3 | `startDev()` / `startProduction()`      | done¹  |
 | T5.4 | `runDoctor()` diagnostics               | todo   |
 | T5.5 | CLI bin                                 | todo   |
 | T5.6 | `init` scaffolder                       | todo   |
@@ -387,6 +387,8 @@ A first attempt at T4.2 (commit `cb45863`, reverted at `5381d09`) was built by d
 
 `src/build/dev.ts`, `src/build/start.ts`: `startDev()` runs `phase: 'dev'|'always'` processes and launches Electron against the consumer's compiled main; `startProduction()` launches the built executable. Programmatic, throwing API. No nested install/compile (I8).
 **Verify:** run both against the Phase 6 example.
+
+¹ Unit-tested (mocked spawn/electron resolution, 593 tests) and reviewed twice (two independent passes, findings reconciled against the real code — see T7.3). Live verification — actually launching a real Electron window via `startDev()` against `examples/basic-kiosk/` — was deliberately **not** done in this session: a real Electron launch here coincided with a full machine crash under concurrent memory pressure (multiple background build/review jobs running at once), and the user chose to defer live verification rather than risk repeating it. Tracked as T7.3. Do the live run manually, alone, before relying on this in production.
 
 ### T5.4 — `runDoctor()`
 
@@ -529,6 +531,7 @@ Tracked work that blocks nothing and is deliberately not scheduled.
 | ---- | ------------------------------------------------------------ | ------ |
 | T7.1 | Investigate WMI-ordinal to Electron `Display.id` correlation | todo   |
 | T7.2 | Diagnose intermittent `src/process/` test failure            | todo   |
+| T7.3 | Live-verify `startDev()`/`startProduction()` against the example | todo   |
 
 ### T7.1 — Investigate WMI-ordinal to Electron `Display.id` correlation
 
@@ -544,3 +547,9 @@ Deliverable is a written finding plus a recommendation to keep, fix, or remove t
 Caught while verifying T4.4 (unrelated to it — soak touches none of `src/process/`): `npm test` failed once in 18 consecutive runs, a `ProcessError` assertion mentioning `'my-proc'`, message content not captured before it passed again on retry. Not reproduced in 17 further runs. Smells like a timing-sensitive test (a real timer or real port rather than a fake clock) rather than a logic bug, but that's inference, not a finding.
 
 **Verify:** reproduce reliably (loop `npm test` with output captured on failure, or run the suspect file alone many times with `--reporter=verbose`), identify the exact test and assertion, then fix the flake at its source (almost certainly: inject a fake clock/deterministic port the way the rest of `src/process/` already does) rather than retrying past it.
+
+### T7.3 — Live-verify `startDev()`/`startProduction()` against the example
+
+T5.3 is unit-tested (mocked spawn/Electron resolution) and independently reviewed twice, but never actually run end-to-end — spawning a real `electron` process via `startDev()` against `examples/basic-kiosk/`. A real Electron launch during this work coincided with the host machine crashing (concurrent background build/review jobs already under memory pressure); the user chose to defer rather than risk repeating it. Not necessarily `startDev()`'s fault — likely just resource contention — but unproven either way.
+
+**Verify:** with nothing else heavy running, call `startDev()` for real against `examples/basic-kiosk/` (entry `dist/main.js`), confirm a real window opens and closes cleanly via `handle.stop()`, then do the same for `startProduction()` against a real `build()` output. Do this alone, not alongside other memory-heavy work.
