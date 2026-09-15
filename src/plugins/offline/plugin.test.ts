@@ -22,6 +22,9 @@ function createMockContext(config: unknown = {}): {
 
   const context: ShellContext<BrowserWindow> = {
     windows,
+    views: {
+      createOverlay: () => ({ show: vi.fn(), hide: vi.fn(), destroy: vi.fn() }),
+    },
     ipc: {
       handle: (channel, handler) => {
         ipcHandlers.set(channel, handler);

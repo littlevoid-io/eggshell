@@ -3,9 +3,9 @@
  */
 
 import type { BrowserWindow } from 'electron';
-import type { ShellContext, ShellPlugin } from '../../plugin-api/types.js';
+import type { OverlayHandle, ShellContext, ShellPlugin } from '../../plugin-api/types.js';
 import { resolvePluginAsset, resolvePluginPreloadPath } from '../shared/asset.js';
-import { OverlayViewManager, updateViews } from '../shared/overlay.js';
+import { updateViews } from '../shared/target-windows.js';
 import { validateOfflineConfig } from './schema.js';
 import { OfflineStateMachine } from './state-machine.js';
 import { ReachabilityProbe } from './probe.js';
@@ -16,12 +16,12 @@ export const PLUGIN_ID = 'offline';
 export interface OfflinePluginOptions {
   readonly config?: Partial<OfflineOverlayConfig>;
   readonly probe?: ReachabilityProbe;
-  readonly viewManager?: OverlayViewManager;
+  readonly viewManager?: OverlayHandle;
 }
 
 export function createOfflinePlugin(options: OfflinePluginOptions = {}): ShellPlugin<BrowserWindow> {
   let timer: NodeJS.Timeout | null = null;
-  let viewManager: OverlayViewManager | null = null;
+  let viewManager: OverlayHandle | null = null;
 
   return {
     id: PLUGIN_ID,
@@ -55,21 +55,16 @@ export function createOfflinePlugin(options: OfflinePluginOptions = {}): ShellPl
   };
 }
 
-function createDefaultViewManager(context: ShellContext<BrowserWindow>): OverlayViewManager {
+function createDefaultViewManager(context: ShellContext): OverlayHandle {
   const assetPath = resolvePluginAsset(context.roots, 'offline', 'offline.html');
   const preloadPath = resolvePluginPreloadPath(context.roots);
-  return new OverlayViewManager({
-    assetPath,
-    preloadPath,
-    logPrefix: 'offline overlay',
-    logger: context.logger,
-  });
+  return context.views.createOverlay({ assetPath, preloadPath });
 }
 
 function setupHandlers(
   context: ShellContext<BrowserWindow>,
   stateMachine: OfflineStateMachine,
-  views: OverlayViewManager,
+  views: OverlayHandle,
   config: OfflineOverlayConfig
 ): void {
   const applyChange = (changed: boolean) => {
@@ -95,7 +90,7 @@ async function executeProbe(
   context: ShellContext<BrowserWindow>,
   stateMachine: OfflineStateMachine,
   probe: ReachabilityProbe,
-  views: OverlayViewManager | null,
+  views: OverlayHandle | null,
   config: OfflineOverlayConfig
 ): Promise<void> {
   const online = await probe.check();

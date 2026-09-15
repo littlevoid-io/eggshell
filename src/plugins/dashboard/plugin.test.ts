@@ -21,6 +21,9 @@ function createMockContext(config: unknown = {}): {
 
   const context: ShellContext<BrowserWindow> = {
     windows,
+    views: {
+      createOverlay: () => ({ show: () => {}, hide: () => {}, destroy: () => {} }),
+    },
     ipc: { handle: () => {} },
     commands: {
       register: (name, handler) => {

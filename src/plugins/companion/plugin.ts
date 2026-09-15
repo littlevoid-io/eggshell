@@ -3,9 +3,9 @@
  */
 
 import type { BrowserWindow } from 'electron';
-import type { ShellContext, ShellPlugin } from '../../plugin-api/types.js';
+import type { OverlayHandle, ShellContext, ShellPlugin } from '../../plugin-api/types.js';
 import { resolvePluginAsset, resolvePluginPreloadPath } from '../shared/asset.js';
-import { OverlayViewManager, updateViews } from '../shared/overlay.js';
+import { updateViews } from '../shared/target-windows.js';
 import { validateCompanionConfig } from './schema.js';
 import { buildCompanionUrl, detectLocalIp } from './network.js';
 import { generateQrDataUrl } from './qr.js';
@@ -19,7 +19,7 @@ export type { CompanionPluginOptions } from './types.js';
 export function createCompanionPlugin(
   options: CompanionPluginOptions = {}
 ): ShellPlugin<BrowserWindow> {
-  let viewManager: OverlayViewManager | null = null;
+  let viewManager: OverlayHandle | null = null;
 
   return {
     id: PLUGIN_ID,
@@ -60,21 +60,16 @@ export function createCompanionPlugin(
   };
 }
 
-function createDefaultViewManager(context: ShellContext<BrowserWindow>): OverlayViewManager {
+function createDefaultViewManager(context: ShellContext): OverlayHandle {
   const assetPath = resolvePluginAsset(context.roots, 'companion', 'companion.html');
   const preloadPath = resolvePluginPreloadPath(context.roots);
-  return new OverlayViewManager({
-    assetPath,
-    preloadPath,
-    logPrefix: 'companion overlay',
-    logger: context.logger,
-  });
+  return context.views.createOverlay({ assetPath, preloadPath });
 }
 
 function setupHandlers(
   context: ShellContext<BrowserWindow>,
   stateMachine: CompanionStateMachine,
-  views: OverlayViewManager,
+  views: OverlayHandle,
   config: CompanionConfig
 ): void {
   const applyChange = (changed: boolean) => {

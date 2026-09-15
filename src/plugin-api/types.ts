@@ -95,8 +95,28 @@ export interface StatusPublisher {
   read(): unknown;
 }
 
+export interface OverlayOptions {
+  readonly assetPath: string;
+  readonly preloadPath?: string | undefined;
+}
+
+/** A managed overlay view a plugin can show/hide by window id, without ever touching a native window type. */
+export interface OverlayHandle {
+  /** Shows the overlay on the given window ids, or every currently known window if omitted. */
+  show(windowIds?: readonly string[]): void;
+  hide(windowIds?: readonly string[]): void;
+  /** Tears down every attached view. Call on plugin teardown. */
+  destroy(): void;
+}
+
+export interface ViewsCapability {
+  /** Creates a new managed overlay view. Each call is an independent overlay (its own view instances per window). */
+  createOverlay(options: OverlayOptions): OverlayHandle;
+}
+
 export interface ShellContext<TNative = unknown> {
   readonly windows: WindowRegistry<TNative>;
+  readonly views: ViewsCapability;
   readonly ipc: IpcRegistrar;
   readonly commands: CommandRegistrar;
   readonly status: StatusPublisher;

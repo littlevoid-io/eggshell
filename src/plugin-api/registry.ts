@@ -28,6 +28,7 @@ import type {
   ShellPlugin,
   ShellContext,
   WindowRegistry,
+  ViewsCapability,
   IpcInvocation,
   IpcHandler,
   CommandHandler,
@@ -40,12 +41,21 @@ const emptyWindowRegistry: WindowRegistry = {
   list: () => [],
 };
 
+const noopViewsCapability: ViewsCapability = {
+  createOverlay: () => ({
+    show: () => {},
+    hide: () => {},
+    destroy: () => {},
+  }),
+};
+
 export interface PluginRegistryOptions<TNative = unknown> {
   roots: ShellRoots;
   logger?: Logger;
   /** `config.plugins` from the validated `ShellConfig` — each plugin sees only its own `[id]` slice. */
   pluginConfig?: ShellConfig['plugins'];
   windows?: WindowRegistry<TNative>;
+  createViews?: (pluginId: string) => ViewsCapability;
 }
 
 export class PluginRegistry<TNative = unknown> {
@@ -53,6 +63,7 @@ export class PluginRegistry<TNative = unknown> {
   private readonly logger: Logger;
   private readonly pluginConfig: ShellConfig['plugins'] | undefined;
   private readonly windows: WindowRegistry<TNative>;
+  private readonly createViews: (pluginId: string) => ViewsCapability;
 
   private readonly plugins = new Map<string, ShellPlugin<TNative>>();
   private readonly setupSucceededIds: string[] = [];
@@ -68,6 +79,7 @@ export class PluginRegistry<TNative = unknown> {
     this.logger = options.logger ?? noopLogger;
     this.pluginConfig = options.pluginConfig;
     this.windows = options.windows ?? (emptyWindowRegistry as WindowRegistry<TNative>);
+    this.createViews = options.createViews ?? (() => noopViewsCapability);
   }
 
   /** Adds a plugin. Throws `PluginError` on a duplicate id or once setup has closed. */
@@ -171,6 +183,7 @@ export class PluginRegistry<TNative = unknown> {
       logger: this.logger,
       config: this.pluginConfig?.[pluginId],
       windows: this.windows,
+      views: this.createViews(pluginId),
       onRegisterIpcHandler: (channel, handler) => this.registerIpc(pluginId, channel, handler),
       onRegisterCommand: (name, handler) => this.registerCommand(pluginId, name, handler),
       onPublishStatus: value => this.status.publish(pluginId, value),

@@ -1,11 +1,18 @@
 /**
- * Shared view manager and window-targeting helpers for overlay plugins.
+ * Shell-level overlay view management (WebContentsView on BrowserWindow).
  */
 
 import { WebContentsView, type BrowserWindow } from 'electron';
-import type { ShellContext } from '../../plugin-api/types.js';
-import type { Logger } from '../../logging/logger.js';
-import { noopLogger } from '../../logging/logger.js';
+import type { Logger } from '../logging/logger.js';
+import { noopLogger } from '../logging/logger.js';
+import type {
+  OverlayHandle,
+  OverlayOptions,
+  ViewsCapability,
+  WindowRegistry,
+} from '../plugin-api/types.js';
+
+export type ViewFactory = (options?: { webPreferences?: Electron.WebPreferences }) => WebContentsView;
 
 interface ActiveViewRecord {
   readonly view: WebContentsView;
@@ -16,20 +23,16 @@ interface ActiveViewRecord {
 export interface OverlayViewManagerOptions {
   readonly assetPath: string;
   readonly preloadPath?: string | undefined;
-  readonly viewFactory?: ((options?: { webPreferences?: Electron.WebPreferences }) => WebContentsView) | undefined;
+  readonly viewFactory?: ViewFactory | undefined;
   readonly logger?: Logger | undefined;
   readonly logPrefix: string;
-}
-
-export interface OverlayTargetConfig {
-  readonly targetWindowIds?: readonly string[] | undefined;
 }
 
 export class OverlayViewManager {
   private readonly viewsByWindow = new Map<BrowserWindow, ActiveViewRecord>();
   private readonly assetPath: string;
   private readonly preloadPath?: string | undefined;
-  private readonly viewFactory?: ((options?: { webPreferences?: Electron.WebPreferences }) => WebContentsView) | undefined;
+  private readonly viewFactory?: ViewFactory | undefined;
   private readonly logger: Logger;
   private readonly logPrefix: string;
 
@@ -118,28 +121,33 @@ export class OverlayViewManager {
   }
 }
 
-export function updateViews(
-  context: ShellContext<BrowserWindow>,
-  showing: boolean,
-  views: Pick<OverlayViewManager, 'show' | 'hide'>,
-  config: OverlayTargetConfig
-): void {
-  const targets = filterTargetWindows(context, config);
-  if (showing) {
-    views.show(targets);
-  } else {
-    views.hide(targets);
-  }
+function resolveWindows(
+  windows: WindowRegistry<BrowserWindow>,
+  windowIds: readonly string[] | undefined
+): BrowserWindow[] {
+  const handles =
+    windowIds === undefined
+      ? windows.list()
+      : windowIds
+          .map(id => windows.get(id))
+          .filter((h): h is NonNullable<typeof h> => h !== undefined);
+  return handles.map(h => h.native).filter((w): w is BrowserWindow => w !== undefined);
 }
 
-export function filterTargetWindows(
-  context: ShellContext<BrowserWindow>,
-  config: OverlayTargetConfig
-): BrowserWindow[] {
-  const allowed = config.targetWindowIds;
-  return context.windows
-    .list()
-    .filter(handle => allowed === undefined || allowed.includes(handle.id))
-    .map(handle => handle.native)
-    .filter((win): win is BrowserWindow => win !== undefined);
+export function createOverlayViewsCapability(
+  windows: WindowRegistry<BrowserWindow>,
+  logger: Logger,
+  logPrefix: string,
+  viewFactory?: ViewFactory
+): ViewsCapability {
+  return {
+    createOverlay(options: OverlayOptions): OverlayHandle {
+      const manager = new OverlayViewManager({ ...options, logPrefix, logger, viewFactory });
+      return {
+        show: windowIds => manager.show(resolveWindows(windows, windowIds)),
+        hide: windowIds => manager.hide(resolveWindows(windows, windowIds)),
+        destroy: () => manager.destroy(),
+      };
+    },
+  };
 }

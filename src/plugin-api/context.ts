@@ -9,7 +9,7 @@
 import { createChildLogger } from '../logging/logger.js';
 import type { Logger } from '../logging/logger.js';
 import type { ShellRoots } from '../paths/roots.js';
-import type { ShellContext, WindowRegistry, IpcHandler, CommandHandler } from './types.js';
+import type { ShellContext, WindowRegistry, ViewsCapability, IpcHandler, CommandHandler } from './types.js';
 
 export interface CreateShellContextOptions<TNative = unknown> {
   pluginId: string;
@@ -18,6 +18,7 @@ export interface CreateShellContextOptions<TNative = unknown> {
   /** This plugin's own `config.plugins[id]` slice — see `ShellContext.config`. */
   config: unknown;
   windows: WindowRegistry<TNative>;
+  views: ViewsCapability;
   onRegisterIpcHandler(channel: string, handler: IpcHandler): void;
   onRegisterCommand(name: string, handler: CommandHandler): void;
   onPublishStatus(value: unknown): void;
@@ -30,6 +31,7 @@ export function createShellContext<TNative = unknown>(
 ): ShellContext<TNative> {
   return {
     windows: options.windows,
+    views: options.views,
     ipc: { handle: options.onRegisterIpcHandler },
     commands: { register: options.onRegisterCommand },
     status: { publish: options.onPublishStatus, read: options.onReadStatus },

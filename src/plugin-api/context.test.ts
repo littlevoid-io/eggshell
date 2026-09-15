@@ -2,12 +2,16 @@ import { describe, it, expect, vi } from 'vitest';
 import { createShellContext } from './context.js';
 import type { ShellRoots } from '../paths/roots.js';
 import { noopLogger } from '../logging/logger.js';
-import type { WindowHandle, WindowRegistry } from './types.js';
+import type { WindowHandle, WindowRegistry, ViewsCapability } from './types.js';
 
 const roots: ShellRoots = {
   packageRoot: '/pkg',
   projectRoot: '/project',
   userDataRoot: '/userdata',
+};
+
+const noopViews: ViewsCapability = {
+  createOverlay: () => ({ show: () => {}, hide: () => {}, destroy: () => {} }),
 };
 
 describe('createShellContext', () => {
@@ -28,6 +32,7 @@ describe('createShellContext', () => {
       logger: noopLogger,
       config: { port: 4000 },
       windows,
+      views: noopViews,
       onRegisterIpcHandler,
       onRegisterCommand,
       onPublishStatus,
@@ -39,6 +44,7 @@ describe('createShellContext', () => {
     expect(context.config).toEqual({ port: 4000 });
     expect(context.windows.get('main')).toBe(window);
     expect(context.windows.list()).toEqual([window]);
+    expect(context.views).toBe(noopViews);
 
     const ipcHandler = (): void => undefined;
     context.ipc.handle('status', ipcHandler);
@@ -66,6 +72,7 @@ describe('createShellContext', () => {
       },
       config: undefined,
       windows: { get: () => undefined, list: () => [] },
+      views: noopViews,
       onRegisterIpcHandler: () => undefined,
       onRegisterCommand: () => undefined,
       onPublishStatus: () => undefined,

@@ -33,6 +33,9 @@ function createMockContext(
   };
   return {
     windows: windowRegistry,
+    views: {
+      createOverlay: () => ({ show: () => {}, hide: () => {}, destroy: () => {} }),
+    },
     ipc: { handle: vi.fn() },
     commands: { register: vi.fn() },
     status: { publish: vi.fn(), read: vi.fn() },

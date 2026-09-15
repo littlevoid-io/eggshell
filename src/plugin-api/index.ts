@@ -12,6 +12,9 @@ export type {
   CommandRegistrar,
   StatusPublisher,
   PluginFailure,
+  OverlayOptions,
+  OverlayHandle,
+  ViewsCapability,
 } from './types.js';
 
 export { createShellContext } from './context.js';

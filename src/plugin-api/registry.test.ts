@@ -3,7 +3,7 @@ import { PluginRegistry } from './registry.js';
 import { PluginError } from '../errors.js';
 import type { Logger } from '../logging/logger.js';
 import type { ShellRoots } from '../paths/roots.js';
-import type { ShellContext, ShellPlugin, IpcInvocation } from './types.js';
+import type { ShellContext, ShellPlugin, IpcInvocation, ViewsCapability } from './types.js';
 
 const testInvocation: IpcInvocation = { windowId: 'test-window' };
 
@@ -57,6 +57,35 @@ describe('PluginRegistry.setupAll', () => {
     expect(b.setup).toHaveBeenCalledTimes(1);
     expect(contexts).toHaveLength(2);
     expect(registry.getFailures()).toHaveLength(0);
+  });
+
+  it('hands each plugin a views capability created by the createViews factory', async () => {
+    const createdForIds: string[] = [];
+    const customViews: ViewsCapability = {
+      createOverlay: () => ({ show: vi.fn(), hide: vi.fn(), destroy: vi.fn() }),
+    };
+    const registry = new PluginRegistry({
+      roots,
+      logger: makeLogger(),
+      createViews: id => {
+        createdForIds.push(id);
+        return customViews;
+      },
+    });
+
+    let receivedViews: ViewsCapability | undefined;
+    registry.register(
+      fakePlugin('views-test', {
+        setup: context => {
+          receivedViews = context.views;
+        },
+      })
+    );
+
+    await registry.setupAll();
+
+    expect(createdForIds).toEqual(['views-test']);
+    expect(receivedViews).toBe(customViews);
   });
 
   it('rejects a duplicate plugin id with PluginError', () => {
@@ -279,7 +308,7 @@ describe('PluginRegistry config isolation', () => {
     // process config, display policy, or any other plugin's config — only
     // this plugin's own opaque `config` slice.
     expect(contextKeys.sort()).toEqual(
-      ['commands', 'config', 'ipc', 'logger', 'roots', 'status', 'windows', 'signal'].sort()
+      ['commands', 'config', 'ipc', 'logger', 'roots', 'status', 'windows', 'views', 'signal'].sort()
     );
   });
 });

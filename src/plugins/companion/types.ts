@@ -2,7 +2,7 @@
  * Types for the companion QR/info overlay plugin (T4.3).
  */
 
-import type { CompanionViewManager } from './view.js';
+import type { OverlayHandle } from '../../plugin-api/types.js';
 
 export interface CompanionState {
   readonly isShowing: boolean;
@@ -26,7 +26,7 @@ export interface CompanionConfig {
 
 export interface CompanionPluginOptions {
   readonly config?: Partial<CompanionConfig> | undefined;
-  readonly viewManager?: CompanionViewManager | undefined;
+  readonly viewManager?: OverlayHandle | undefined;
   readonly qrGenerator?: ((text: string) => Promise<string>) | undefined;
   readonly ipResolver?: (() => string) | undefined;
 }

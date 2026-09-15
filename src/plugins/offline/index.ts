@@ -8,6 +8,4 @@ export { offlineConfigSchema, validateOfflineConfig } from './schema.js';
 export { OfflineStateMachine } from './state-machine.js';
 export { ReachabilityProbe } from './probe.js';
 export type { ReachabilityProbeOptions } from './probe.js';
-export { OverlayViewManager } from './view.js';
-export type { OverlayViewManagerOptions } from './view.js';
 export type { OfflineOverlayConfig, OfflineOverlayState, StateListener } from './types.js';

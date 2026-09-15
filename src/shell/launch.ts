@@ -100,6 +100,7 @@ import { createWatchdog } from './watchdog.js';
 import type { Watchdog, WatchdogOptions } from './watchdog.js';
 import { createDisplayEventBridge } from './display-events.js';
 import type { DisplayEventBridge } from './display-events.js';
+import { createOverlayViewsCapability } from './overlay-views.js';
 
 const DEFAULT_SHUTDOWN_GRACE_MS = 5000;
 
@@ -219,11 +220,14 @@ export async function launch(options: LaunchOptions): Promise<LaunchResult> {
   );
   windowsHolder.current = windows;
 
+  const windowRegistry = createWindowRegistry(windows);
   const pluginRegistry = new PluginRegistry({
     roots,
     logger,
     pluginConfig: shellConfig.plugins,
-    windows: createWindowRegistry(windows),
+    windows: windowRegistry,
+    createViews: pluginId =>
+      createOverlayViewsCapability(windowRegistry, logger, `${pluginId} overlay`),
   });
 
   // Registered exactly once, process-wide -- see module doc / constraint 4.
