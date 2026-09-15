@@ -4,14 +4,10 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import type { ShellRoots } from '../../paths/roots.js';
-import { resolvePackageAsset } from '../../paths/roots.js';
+import { resolvePluginAsset } from '../shared/asset.js';
 
 export function resolveFuzzerAssetPath(roots: ShellRoots): string {
-  const distPath = resolvePackageAsset(roots, 'dist/plugins/soak/assets/fuzzer.js');
-  if (existsSync(distPath)) {
-    return distPath;
-  }
-  return resolvePackageAsset(roots, 'src/plugins/soak/assets/fuzzer.js');
+  return resolvePluginAsset(roots, 'soak', 'fuzzer.js');
 }
 
 export function loadFuzzerAsset(roots: ShellRoots): string {

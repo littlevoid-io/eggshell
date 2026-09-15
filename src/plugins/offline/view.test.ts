@@ -53,6 +53,7 @@ describe('OverlayViewManager (T4.1)', () => {
 
     const manager = new OverlayViewManager({
       assetPath: 'C:/assets/offline.html',
+      logPrefix: 'offline overlay',
       viewFactory: () => view,
     });
 
@@ -70,6 +71,7 @@ describe('OverlayViewManager (T4.1)', () => {
 
     const manager = new OverlayViewManager({
       assetPath: 'C:/assets/offline.html',
+      logPrefix: 'offline overlay',
       viewFactory: () => view,
     });
 
@@ -96,6 +98,7 @@ describe('OverlayViewManager (T4.1)', () => {
 
     const manager = new OverlayViewManager({
       assetPath: 'C:/assets/offline.html',
+      logPrefix: 'offline overlay',
       viewFactory: () => view,
     });
 
@@ -116,6 +119,7 @@ describe('OverlayViewManager (T4.1)', () => {
 
     const manager = new OverlayViewManager({
       assetPath: 'C:/assets/offline.html',
+      logPrefix: 'offline overlay',
       viewFactory: () => view,
     });
 

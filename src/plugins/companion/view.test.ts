@@ -60,6 +60,7 @@ describe('CompanionViewManager (T4.3)', () => {
 
     const manager = new CompanionViewManager({
       assetPath: 'C:/assets/companion.html',
+      logPrefix: 'companion overlay',
       viewFactory: () => view,
     });
 
@@ -77,6 +78,7 @@ describe('CompanionViewManager (T4.3)', () => {
 
     const manager = new CompanionViewManager({
       assetPath: 'C:/assets/companion.html',
+      logPrefix: 'companion overlay',
       viewFactory: () => view,
     });
 
@@ -102,6 +104,7 @@ describe('CompanionViewManager (T4.3)', () => {
 
     const manager = new CompanionViewManager({
       assetPath: 'C:/assets/companion.html',
+      logPrefix: 'companion overlay',
       viewFactory: () => view,
     });
 
@@ -123,6 +126,7 @@ describe('CompanionViewManager (T4.3)', () => {
 
     const manager = new CompanionViewManager({
       assetPath: 'C:/assets/companion.html',
+      logPrefix: 'companion overlay',
       viewFactory: () => view,
     });
 
@@ -151,6 +155,7 @@ describe('CompanionViewManager (T4.3)', () => {
 
     const manager = new CompanionViewManager({
       assetPath: 'C:/assets/companion.html',
+      logPrefix: 'companion overlay',
       viewFactory: () => view,
     });
 

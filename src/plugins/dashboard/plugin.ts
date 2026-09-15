@@ -2,10 +2,9 @@
  * Remote dashboard plugin implementation (T4.2).
  */
 
-import { existsSync } from 'node:fs';
 import type { BrowserWindow } from 'electron';
 import type { ShellContext, ShellPlugin } from '../../plugin-api/types.js';
-import { resolvePackageAsset } from '../../paths/roots.js';
+import { resolvePluginAsset } from '../shared/asset.js';
 import { validateDashboardConfig } from './schema.js';
 import { DashboardServer } from './server.js';
 import { buildDashboardStatus, createDashboardActions } from './status.js';
@@ -30,7 +29,7 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): She
         return;
       }
 
-      const assetPath = resolveDashboardAssetPath(context);
+      const assetPath = resolvePluginAsset(context.roots, 'dashboard', 'dashboard.html');
       const actions = createDashboardActions(context);
       const getStatus = () => buildDashboardStatus(context);
 
@@ -54,14 +53,6 @@ export function createDashboardPlugin(options: DashboardPluginOptions = {}): She
       }
     },
   };
-}
-
-function resolveDashboardAssetPath(context: ShellContext<BrowserWindow>): string {
-  const distPath = resolvePackageAsset(context.roots, 'dist/plugins/dashboard/assets/dashboard.html');
-  if (existsSync(distPath)) {
-    return distPath;
-  }
-  return resolvePackageAsset(context.roots, 'src/plugins/dashboard/assets/dashboard.html');
 }
 
 function registerDashboardCommands(

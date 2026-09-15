@@ -2,14 +2,13 @@
  * Offline overlay plugin implementation (T4.1).
  */
 
-import { existsSync } from 'node:fs';
 import type { BrowserWindow } from 'electron';
 import type { ShellContext, ShellPlugin } from '../../plugin-api/types.js';
-import { resolvePackageAsset } from '../../paths/roots.js';
+import { resolvePluginAsset, resolvePluginPreloadPath } from '../shared/asset.js';
+import { OverlayViewManager, updateViews } from '../shared/overlay.js';
 import { validateOfflineConfig } from './schema.js';
 import { OfflineStateMachine } from './state-machine.js';
 import { ReachabilityProbe } from './probe.js';
-import { OverlayViewManager } from './view.js';
 import type { OfflineOverlayConfig, OfflineOverlayState } from './types.js';
 
 export const PLUGIN_ID = 'offline';
@@ -57,21 +56,14 @@ export function createOfflinePlugin(options: OfflinePluginOptions = {}): ShellPl
 }
 
 function createDefaultViewManager(context: ShellContext<BrowserWindow>): OverlayViewManager {
-  const assetPath = resolveAssetPath(context);
-  const preloadPath = resolvePreloadPath(context);
-  return new OverlayViewManager({ assetPath, preloadPath, logger: context.logger });
-}
-
-function resolveAssetPath(context: ShellContext<BrowserWindow>): string {
-  const distPath = resolvePackageAsset(context.roots, 'dist/plugins/offline/assets/offline.html');
-  if (existsSync(distPath)) {
-    return distPath;
-  }
-  return resolvePackageAsset(context.roots, 'src/plugins/offline/assets/offline.html');
-}
-
-function resolvePreloadPath(context: ShellContext<BrowserWindow>): string {
-  return resolvePackageAsset(context.roots, 'dist/preload.cjs');
+  const assetPath = resolvePluginAsset(context.roots, 'offline', 'offline.html');
+  const preloadPath = resolvePluginPreloadPath(context.roots);
+  return new OverlayViewManager({
+    assetPath,
+    preloadPath,
+    logPrefix: 'offline overlay',
+    logger: context.logger,
+  });
 }
 
 function setupHandlers(
@@ -112,32 +104,6 @@ async function executeProbe(
     updateViews(context, stateMachine.getState().isShowing, views, config);
     publishState(context, stateMachine.getState());
   }
-}
-
-function updateViews(
-  context: ShellContext<BrowserWindow>,
-  showing: boolean,
-  views: OverlayViewManager,
-  config: OfflineOverlayConfig
-): void {
-  const targets = filterTargetWindows(context, config);
-  if (showing) {
-    views.show(targets);
-  } else {
-    views.hide(targets);
-  }
-}
-
-function filterTargetWindows(
-  context: ShellContext<BrowserWindow>,
-  config: OfflineOverlayConfig
-): BrowserWindow[] {
-  const allowed = config.targetWindowIds;
-  return context.windows
-    .list()
-    .filter(handle => allowed === undefined || allowed.includes(handle.id))
-    .map(handle => handle.native)
-    .filter((win): win is BrowserWindow => win !== undefined);
 }
 
 function publishState(context: ShellContext<BrowserWindow>, state: OfflineOverlayState): void {
