@@ -431,7 +431,7 @@ Two real bugs were found only through live verification, neither caught by unit 
 | T6.2 | Multi-window + touch-role layout    | done   |
 | T6.3 | Offline + dashboard plugins enabled | done   |
 | T6.4 | Build + manifest hand-off doc       | done   |
-| T6.5 | Soak run + CI smoke script          | todo   |
+| T6.5 | Soak run + CI smoke script          | done   |
 
 ### T6.1 — Example skeleton
 
@@ -469,6 +469,10 @@ Two issues found and fixed during my own verification, not caught by the impleme
 
 A single `npm run smoke` at the repo root: lint, typecheck, unit tests, build the example, run `doctor`, assert the manifest, run a short seeded soak. This is the regression gate for every later change.
 **Verify:** the script passes end-to-end from a clean clone.
+
+**Done, completing Phase 6.** `scripts/smoke.mjs` (+ `smoke-command.mjs`/`smoke-example.mjs`) runs all 8 steps, failing loudly on the first real failure, with full cleanup in a `finally` (build artifacts and the temp soak directory) so a failed run never poisons the next. The soak step injects `createSoakPlugin()` into the example without touching its committed source, via a temporary compiled-output patch plus a deployment-override file (T1.5) carrying the real plugin config — `startDev()`'s own `config` parameter cannot do this, since it only ever reads `config.processes`.
+
+Live-verified for real, twice in a row: both runs built the example, ran all 9 doctor checks against real hardware, validated a real manifest, and completed a real 5-action seeded soak with 0 crashes — with `git status` and a real process check confirming full cleanup after each run. One dead-code finding from my own review, fixed: the implementing job also built and passed a duplicate, unused `soakConfig` to `startDev()`, which does nothing there (the deployment-override file was already the real mechanism) — removed.
 
 ---
 
@@ -525,6 +529,7 @@ Tracked in the lead architect's report; summarised here.
 | `4031a0d` | T6.2 — multi-window + touch-role layout                                                                | 656 tests; live-verified role-unmatched -> primary fallback on real non-touch hardware, both windows rendering distinct real content; independently-found example-only tsc error and a redundant loadURL workaround fixed/removed                                                           |
 | `9b30001` | T6.4 — provisioning hand-off doc                                                                       | 656 tests; independently-found and fixed worktree-scoped absolute links and an unverifiable manifest example - replaced with a freshly reproduced, on-disk-verified real build() manifest                                                                                                   |
 | `330533e` | T6.3 — offline + dashboard plugins enabled                                                             | 656 tests; live-verified real dashboard HTTP status response, real LAN-bind refusal (ECONNREFUSED), and getFailures() == [] proving both plugins' setup() succeeded                                                                                                                         |
+| `1e2b703` | T6.5 — `npm run smoke`, completing Phase 6                                                             | 656 tests; ran the full 8-step smoke suite for real twice in a row (build+doctor+manifest+seeded soak), confirmed full artifact cleanup and no orphaned processes after each run; removed a dead unused parameter found during my own review                                                |
 
 ### Notes carried forward
 
