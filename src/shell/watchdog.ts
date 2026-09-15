@@ -160,6 +160,8 @@ import type { Logger } from '../logging/logger.js';
 import { noopLogger } from '../logging/logger.js';
 import type { Outcome } from '../errors.js';
 import { computeBackoffMs } from '../process/backoff.js';
+import { createRateWindow, type RateWindow } from '../process/rate-window.js';
+
 
 export type WatchdogWindowState =
   'healthy' | 'unresponsive' | 'scheduled' | 'reloading' | 'suspended' | 'failed';
@@ -255,13 +257,15 @@ interface WatchdogContext {
 
   readonly records: Map<string, WindowRecord>;
   readonly attachments: Map<string, Attachment>;
-  /** Tier 2: `clock.now()` of each reload attempt still within `globalRateWindowMs`, oldest first. */
-  readonly globalTimestamps: number[];
+  /** Tier 2: rolling reload rate ceiling across all windows. */
+  readonly rateWindow: RateWindow;
 }
 
 const ERR_ABORTED = -3;
 
 export function createWatchdog(options: WatchdogOptions): Watchdog {
+  const maxGlobalReloads = options.maxGlobalReloads ?? 10;
+  const globalRateWindowMs = options.globalRateWindowMs ?? 60_000;
   const ctx: WatchdogContext = {
     clock: options.clock,
     logger: options.logger ?? noopLogger,
@@ -272,14 +276,14 @@ export function createWatchdog(options: WatchdogOptions): Watchdog {
     maxBackoffMs: options.maxBackoffMs ?? 30_000,
     healthyResetMs: options.healthyResetMs ?? 600_000,
     unresponsiveGraceMs: options.unresponsiveGraceMs ?? 8000,
-    maxGlobalReloads: options.maxGlobalReloads ?? 10,
-    globalRateWindowMs: options.globalRateWindowMs ?? 60_000,
+    maxGlobalReloads,
+    globalRateWindowMs,
     armed: true,
     disposed: false,
     globalGivenUp: false,
     records: new Map(),
     attachments: new Map(),
-    globalTimestamps: [],
+    rateWindow: createRateWindow(options.clock, globalRateWindowMs, maxGlobalReloads),
   };
 
   return {
@@ -504,11 +508,8 @@ function scheduleAttempt(ctx: WatchdogContext, record: WindowRecord): void {
 
 /** Prunes Tier 2's rolling window and clears a prior global give-up once it has genuinely drained. Mirrors `layout/supervisor.ts`'s Tier 2 recompute. */
 function refreshGlobalRateState(ctx: WatchdogContext): void {
-  const cutoff = ctx.clock.now() - ctx.globalRateWindowMs;
-  while (ctx.globalTimestamps.length > 0 && ctx.globalTimestamps[0]! < cutoff) {
-    ctx.globalTimestamps.shift();
-  }
-  if (ctx.globalGivenUp && ctx.globalTimestamps.length < ctx.maxGlobalReloads) {
+  ctx.rateWindow.prune();
+  if (ctx.globalGivenUp && !ctx.rateWindow.isExceeded()) {
     ctx.globalGivenUp = false;
     ctx.logger.info('watchdog: global rate ceiling drained; resuming', {});
   }
@@ -560,7 +561,7 @@ async function runAttempt(ctx: WatchdogContext, record: WindowRecord): Promise<v
   }
 
   refreshGlobalRateState(ctx);
-  if (ctx.globalTimestamps.length >= ctx.maxGlobalReloads) {
+  if (ctx.rateWindow.isExceeded()) {
     giveUpGlobalRate(ctx);
     // This window's own budget is untouched — the attempt never ran, so it
     // never counted against Tier 1. A later event for this window (or the
@@ -570,7 +571,7 @@ async function runAttempt(ctx: WatchdogContext, record: WindowRecord): Promise<v
   }
 
   record.attempts += 1;
-  ctx.globalTimestamps.push(ctx.clock.now());
+  ctx.rateWindow.record();
   record.state = 'reloading';
   const reason = record.lastReason ?? 'unknown';
 

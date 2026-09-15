@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createWindowSupervisor } from './supervisor.js';
+import { createTopologySupervisor } from './supervisor.js';
 import type { DisplaySnapshot } from './types.js';
 import type { Logger, LogFields } from '../logging/logger.js';
 import { createFakeClock, type FakeClock } from '../__testing__/fake-clock.js';
@@ -85,12 +85,12 @@ async function driveOneAttempt(
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('createWindowSupervisor', () => {
+describe('createTopologySupervisor', () => {
   it('triggers exactly one apply after debounceMs for a single new topology, not before', () => {
     const clock = createFakeClock();
     const apply = vi.fn(() => undefined);
     const verify = vi.fn(() => true);
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -113,7 +113,7 @@ describe('createWindowSupervisor', () => {
     const apply = vi.fn(() => undefined);
     const verify = vi.fn(() => true);
     const debounceMs = 100;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -136,7 +136,7 @@ describe('createWindowSupervisor', () => {
     const apply = vi.fn(() => undefined);
     const verify = vi.fn(() => true);
     const debounceMs = 50;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -160,7 +160,7 @@ describe('createWindowSupervisor', () => {
     const apply = vi.fn(() => undefined);
     const verify = vi.fn(() => true);
     const debounceMs = 50;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -187,7 +187,7 @@ describe('createWindowSupervisor', () => {
     const verify = vi.fn(() => true);
     const debounceMs = 10;
     const verifyDelayMs = 5;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -214,7 +214,7 @@ describe('createWindowSupervisor', () => {
     const verify = vi.fn(() => true);
     const debounceMs = 10;
     const verifyDelayMs = 5;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -243,7 +243,7 @@ describe('createWindowSupervisor', () => {
     const maxAttemptsPerTopology = 3;
     const debounceMs = 50;
     const verifyDelayMs = 10;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -273,7 +273,7 @@ describe('createWindowSupervisor', () => {
     const maxAttemptsPerTopology = 3;
     const debounceMs = 50;
     const verifyDelayMs = 10;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -299,7 +299,7 @@ describe('createWindowSupervisor', () => {
     const maxAttemptsPerTopology = 3;
     const debounceMs = 10;
     const verifyDelayMs = 5;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -346,7 +346,7 @@ describe('createWindowSupervisor', () => {
     const maxAttemptsPerTopology = 2;
     const debounceMs = 10;
     const verifyDelayMs = 5;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -390,7 +390,7 @@ describe('createWindowSupervisor', () => {
     const maxAttemptsPerTopology = 3;
     const debounceMs = 10;
     const verifyDelayMs = 5;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -427,7 +427,7 @@ describe('createWindowSupervisor', () => {
     const verifyDelayMs = 50;
     const giveUpAfterMs = 200;
     const maxAttemptsPerTopology = 10;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -457,7 +457,7 @@ describe('createWindowSupervisor', () => {
     const displaysB = [buildDisplay({ id: 2 })];
     let concurrent = 0;
     let maxConcurrent = 0;
-    const supervisorRef: { current?: ReturnType<typeof createWindowSupervisor> } = {};
+    const supervisorRef: { current?: ReturnType<typeof createTopologySupervisor> } = {};
 
     const apply = vi.fn(async (displays: readonly DisplaySnapshot[]) => {
       concurrent++;
@@ -473,7 +473,7 @@ describe('createWindowSupervisor', () => {
     const debounceMs = 10;
     const verifyDelayMs = 5;
 
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -505,7 +505,7 @@ describe('createWindowSupervisor', () => {
     const verify = vi.fn(() => true);
     const debounceMs = 10;
     const verifyDelayMs = 5;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -550,7 +550,7 @@ describe('createWindowSupervisor', () => {
     const verify = vi.fn(() => true);
     const debounceMs = 10;
     const verifyDelayMs = 5;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -581,7 +581,7 @@ describe('createWindowSupervisor', () => {
     const verify = vi.fn(() => true);
     const maxAttemptsPerTopology = 2;
     const debounceMs = 10;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -617,7 +617,7 @@ describe('createWindowSupervisor', () => {
     const maxAttemptsPerTopology = 2;
     const debounceMs = 10;
     const verifyDelayMs = 5;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -644,7 +644,7 @@ describe('createWindowSupervisor', () => {
     const clock = createFakeClock();
     const apply = vi.fn(() => undefined);
     const verify = vi.fn(() => true);
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -683,7 +683,7 @@ describe('createWindowSupervisor', () => {
     const maxAttemptsPerTopology = 100; // high enough that Tier 1 alone would never trip
     const maxGlobalAttempts = 6;
     const globalRateWindowMs = 100_000; // effectively unbounded for this test's timeframe
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -722,7 +722,7 @@ describe('createWindowSupervisor', () => {
     const verifyDelayMs = 5;
     const maxGlobalAttempts = 5;
     const globalRateWindowMs = 100_000;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -754,7 +754,7 @@ describe('createWindowSupervisor', () => {
     const verifyDelayMs = 5;
     const maxGlobalAttempts = 3;
     const globalRateWindowMs = 1000;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -792,7 +792,7 @@ describe('createWindowSupervisor', () => {
     const verifyDelayMs = 5;
     const maxGlobalAttempts = 2;
     const globalRateWindowMs = 1000;
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -829,7 +829,7 @@ describe('createWindowSupervisor', () => {
     const maxAttemptsPerTopology = 1; // give up immediately after one failed attempt per signature
     const maxGlobalAttempts = 10;
     const globalRateWindowMs = 1_000_000; // never drains within this test
-    const supervisor = createWindowSupervisor({
+    const supervisor = createTopologySupervisor({
       clock,
       apply,
       verify,
@@ -859,7 +859,7 @@ describe('createWindowSupervisor', () => {
     const apply1 = vi.fn(() => undefined);
     const verify1 = vi.fn(() => false);
     const maxAttemptsPerTopology = 2;
-    const s1 = createWindowSupervisor({
+    const s1 = createTopologySupervisor({
       clock: clock1,
       apply: apply1,
       verify: verify1,
@@ -882,7 +882,7 @@ describe('createWindowSupervisor', () => {
     const apply2 = vi.fn(() => undefined);
     const verify2 = vi.fn(() => true);
     const maxGlobalAttempts = 2;
-    const s2 = createWindowSupervisor({
+    const s2 = createTopologySupervisor({
       clock: clock2,
       apply: apply2,
       verify: verify2,

@@ -58,8 +58,8 @@ import type { Display, Screen } from 'electron';
 import type { Clock } from '../clock.js';
 import type { Logger } from '../logging/logger.js';
 import { noopLogger } from '../logging/logger.js';
-import { createWindowSupervisor } from '../layout/supervisor.js';
-import type { WindowSupervisor, WindowSupervisorOptions } from '../layout/supervisor.js';
+import { createTopologySupervisor } from '../layout/supervisor.js';
+import type { TopologySupervisor, TopologySupervisorOptions } from '../layout/supervisor.js';
 import { resolveLayout } from '../layout/resolve.js';
 import type {
   Bounds,
@@ -99,7 +99,7 @@ const DEFAULT_GLOBAL_RATE_WINDOW_MS = 60_000;
 const DEFAULT_VERIFY_TOLERANCE_PX = 2;
 
 export type SupervisorTuning = Omit<
-  WindowSupervisorOptions,
+  TopologySupervisorOptions,
   'clock' | 'apply' | 'verify' | 'logger'
 >;
 
@@ -133,7 +133,7 @@ export interface DisplayEventBridge {
   /** Removes every `screen` listener this bridge registered, then disposes the underlying supervisor. Idempotent. */
   dispose(): void;
   /** The underlying supervisor's state, exposed read-only for diagnostics/tests. */
-  readonly supervisorState: WindowSupervisor['state'];
+  readonly supervisorState: TopologySupervisor['state'];
 }
 
 /** All state one bridge instance closes over, threaded explicitly rather than nested-function-captured, matching `layout/supervisor.ts`'s pattern. */
@@ -149,7 +149,7 @@ interface BridgeContext {
 
 /**
  * Builds the supervisor and the `screen` subscription together as one unit,
- * rather than accepting a pre-built `WindowSupervisor`. A caller (T3.4) has
+ * rather than accepting a pre-built `TopologySupervisor`. A caller (T3.4) has
  * no correct way to hand-wire `apply`/`verify` itself without re-deriving
  * exactly the logic this file exists to own (resolve, look up the right
  * window, apply, tolerant-compare) — splitting construction across two call
@@ -174,7 +174,7 @@ export function createDisplayEventBridge(options: DisplayEventBridgeOptions): Di
     verifyTolerancePx: options.verifyTolerancePx ?? DEFAULT_VERIFY_TOLERANCE_PX,
   };
 
-  const supervisor = createWindowSupervisor({
+  const supervisor = createTopologySupervisor({
     clock: options.clock,
     logger,
     debounceMs: options.supervisor?.debounceMs ?? DEFAULT_DEBOUNCE_MS,

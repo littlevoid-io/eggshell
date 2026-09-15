@@ -1,5 +1,5 @@
 /**
- * The window supervisor state machine (T2.4).
+ * The topology supervisor state machine (T2.4).
  *
  * This file does **not** call `resolveLayout` and does **not** probe
  * anything. It receives `apply`/`verify` callbacks and drives them through a
@@ -71,11 +71,12 @@ import { noopLogger } from '../logging/logger.js';
 import { describeError, type Outcome } from '../errors.js';
 import { topologySignature } from './signature.js';
 import type { DisplaySnapshot } from './types.js';
+import { createRateWindow, type RateWindow } from '../process/rate-window.js';
 
 export type SupervisorState = 'settled' | 'scheduled' | 'applying' | 'verifying' | 'givenUp';
 export type GivenUpReason = 'topology' | 'rate';
 
-export interface WindowSupervisorOptions {
+export interface TopologySupervisorOptions {
   clock: Clock;
   apply: (displays: readonly DisplaySnapshot[]) => Promise<void> | void;
   verify: (displays: readonly DisplaySnapshot[]) => Promise<boolean> | boolean;
@@ -92,7 +93,7 @@ export interface WindowSupervisorOptions {
   logger?: Logger;
 }
 
-export interface WindowSupervisor {
+export interface TopologySupervisor {
   onDisplaysChanged(displays: readonly DisplaySnapshot[]): void;
   readonly state: SupervisorState;
   /** Attempts made so far against whichever topology is (or was most recently) active. */
@@ -116,12 +117,12 @@ const MAX_TRACKED_TOPOLOGIES = 8;
 /**
  * All mutable state for one supervisor instance, threaded explicitly through
  * the module-level functions below rather than closed over, so no function
- * here is a nested definition inside `createWindowSupervisor`.
+ * here is a nested definition inside `createTopologySupervisor`.
  */
 interface SupervisorContext {
   readonly clock: Clock;
-  readonly apply: WindowSupervisorOptions['apply'];
-  readonly verify: WindowSupervisorOptions['verify'];
+  readonly apply: TopologySupervisorOptions['apply'];
+  readonly verify: TopologySupervisorOptions['verify'];
   readonly debounceMs: number;
   readonly maxAttemptsPerTopology: number;
   readonly verifyDelayMs: number;
@@ -141,8 +142,8 @@ interface SupervisorContext {
 
   /** Tier 1: bounded, LRU-ordered (oldest first) per-topology attempt ledger. */
   readonly ledger: Map<string, TopologyRecord>;
-  /** Tier 2: `clock.now()` of each attempt start still within `globalRateWindowMs`, oldest first. */
-  readonly attemptTimestamps: number[];
+  /** Tier 2: rolling attempt rate ceiling backstopping Tier 1 eviction. */
+  readonly rateWindow: RateWindow;
 
   /** Latest displays/signature seen while `scheduled` (debounce) or mid-cycle (`applying`/`verifying`). */
   pendingDisplays: readonly DisplaySnapshot[] | undefined;
@@ -152,7 +153,7 @@ interface SupervisorContext {
   verifyTimer: TimerHandle | undefined;
 }
 
-export function createWindowSupervisor(options: WindowSupervisorOptions): WindowSupervisor {
+export function createTopologySupervisor(options: TopologySupervisorOptions): TopologySupervisor {
   const ctx: SupervisorContext = {
     clock: options.clock,
     apply: options.apply,
@@ -170,7 +171,11 @@ export function createWindowSupervisor(options: WindowSupervisorOptions): Window
     lastSettledSignature: undefined,
     activeSignature: undefined,
     ledger: new Map(),
-    attemptTimestamps: [],
+    rateWindow: createRateWindow(
+      options.clock,
+      options.globalRateWindowMs,
+      options.maxGlobalAttempts
+    ),
     pendingDisplays: undefined,
     pendingSignature: undefined,
     scheduledTimer: undefined,
@@ -208,7 +213,7 @@ function handleDisplaysChanged(ctx: SupervisorContext, displays: readonly Displa
     return;
   }
   if (isBlocklisted(ctx, signature)) {
-    ctx.logger.debug('window supervisor: dropping event for a topology already given up on', {
+    ctx.logger.debug('topology supervisor: dropping event for a topology already given up on', {
       signature,
     });
     return;
@@ -217,7 +222,7 @@ function handleDisplaysChanged(ctx: SupervisorContext, displays: readonly Displa
   // topology is a genuine revert (see module doc), not cascade noise, and
   // must be recorded rather than dropped.
   if (ctx.state === 'settled' && signature === ctx.lastSettledSignature) {
-    ctx.logger.debug('window supervisor: dropping event matching last settled topology', {
+    ctx.logger.debug('topology supervisor: dropping event matching last settled topology', {
       signature,
     });
     return;
@@ -238,9 +243,8 @@ function handleDisplaysChanged(ctx: SupervisorContext, displays: readonly Displa
  * window has drained; otherwise drops the event and returns `true`.
  */
 function isStillRateLimited(ctx: SupervisorContext, signature: string): boolean {
-  pruneAttemptWindow(ctx);
-  if (ctx.attemptTimestamps.length >= ctx.maxGlobalAttempts) {
-    ctx.logger.debug('window supervisor: dropping event while rate-limited', { signature });
+  if (ctx.rateWindow.isExceeded()) {
+    ctx.logger.debug('topology supervisor: dropping event while rate-limited', { signature });
     return true;
   }
   ctx.givenUpReason = undefined;
@@ -276,8 +280,7 @@ function startCycle(ctx: SupervisorContext): void {
   ctx.pendingDisplays = undefined;
   ctx.pendingSignature = undefined;
 
-  pruneAttemptWindow(ctx);
-  if (ctx.attemptTimestamps.length >= ctx.maxGlobalAttempts) {
+  if (ctx.rateWindow.isExceeded()) {
     giveUpGlobalRate(ctx, signature);
     return;
   }
@@ -296,7 +299,7 @@ async function runAttempt(
   const record = getOrCreateRecord(ctx, signature);
   record.attempts += 1;
   record.firstAttemptAt ??= ctx.clock.now();
-  ctx.attemptTimestamps.push(ctx.clock.now());
+  ctx.rateWindow.record();
   ctx.activeSignature = signature;
   ctx.state = 'applying';
 
@@ -304,7 +307,7 @@ async function runAttempt(
   if (ctx.disposed) return;
   if (!applied.ok) {
     ctx.logger.warn(
-      'window supervisor: apply threw',
+      'topology supervisor: apply threw',
       attemptFields(ctx, signature, record, applied.error)
     );
     handleFailedAttempt(ctx, signature, displays, record);
@@ -319,7 +322,7 @@ async function runAttempt(
   if (ctx.disposed) return;
   if (!verified.ok) {
     ctx.logger.warn(
-      'window supervisor: verify threw',
+      'topology supervisor: verify threw',
       attemptFields(ctx, signature, record, verified.error)
     );
     handleFailedAttempt(ctx, signature, displays, record);
@@ -405,7 +408,7 @@ function giveUpTopology(ctx: SupervisorContext, signature: string, record: Topol
   record.gaveUp = true;
   cancelScheduledTimer(ctx);
   cancelVerifyTimer(ctx);
-  ctx.logger.error('window supervisor: giving up on this topology after repeated failures', {
+  ctx.logger.error('topology supervisor: giving up on this topology after repeated failures', {
     attempts: record.attempts,
     maxAttemptsPerTopology: ctx.maxAttemptsPerTopology,
     signature,
@@ -438,7 +441,7 @@ function giveUpGlobalRate(ctx: SupervisorContext, signature: string): void {
   ctx.pendingDisplays = undefined;
   ctx.pendingSignature = undefined;
   ctx.logger.error(
-    'window supervisor: giving up globally — attempts are arriving faster than the rate ceiling allows (the display topology may be flapping)',
+    'topology supervisor: giving up globally — attempts are arriving faster than the rate ceiling allows (the display topology may be flapping)',
     {
       maxGlobalAttempts: ctx.maxGlobalAttempts,
       globalRateWindowMs: ctx.globalRateWindowMs,
@@ -473,17 +476,6 @@ function evictOldestIfNeeded(ctx: SupervisorContext): void {
       return;
     }
     ctx.ledger.delete(oldestKey);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Tier 2 rolling window
-// ---------------------------------------------------------------------------
-
-function pruneAttemptWindow(ctx: SupervisorContext): void {
-  const cutoff = ctx.clock.now() - ctx.globalRateWindowMs;
-  while (ctx.attemptTimestamps.length > 0 && ctx.attemptTimestamps[0]! < cutoff) {
-    ctx.attemptTimestamps.shift();
   }
 }
 

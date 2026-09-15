@@ -8,12 +8,12 @@ export type {
 } from './types.js';
 export { topologySignature } from './signature.js';
 export { resolveLayout } from './resolve.js';
-export { createWindowSupervisor } from './supervisor.js';
+export { createTopologySupervisor } from './supervisor.js';
 export type {
   SupervisorState,
   GivenUpReason,
-  WindowSupervisor,
-  WindowSupervisorOptions,
+  TopologySupervisor,
+  TopologySupervisorOptions,
 } from './supervisor.js';
 export type { TouchProbe } from './probes/types.js';
 export { noopTouchProbe } from './probes/noop.js';
