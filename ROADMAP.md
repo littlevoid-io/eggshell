@@ -530,6 +530,7 @@ Tracked in the lead architect's report; summarised here.
 | `9b30001` | T6.4 — provisioning hand-off doc                                                                       | 656 tests; independently-found and fixed worktree-scoped absolute links and an unverifiable manifest example - replaced with a freshly reproduced, on-disk-verified real build() manifest                                                                                                   |
 | `330533e` | T6.3 — offline + dashboard plugins enabled                                                             | 656 tests; live-verified real dashboard HTTP status response, real LAN-bind refusal (ECONNREFUSED), and getFailures() == [] proving both plugins' setup() succeeded                                                                                                                         |
 | `1e2b703` | T6.5 — `npm run smoke`, completing Phase 6                                                             | 656 tests; ran the full 8-step smoke suite for real twice in a row (build+doctor+manifest+seeded soak), confirmed full artifact cleanup and no orphaned processes after each run; removed a dead unused parameter found during my own review                                                |
+| `71306af` | T7.4 — soak fuzzer viewport sizing and round-robin targeting                                           | 662 tests; live-verified a real 12-action soak against two real non-default 800x600 windows - all coordinates in-bounds, perfect round-robin alternation; independently-found and fixed an exactOptionalPropertyTypes typecheck error                                                       |
 
 ### Notes carried forward
 
@@ -573,7 +574,7 @@ Tracked work that blocks nothing and is deliberately not scheduled.
 | T7.1 | Investigate WMI-ordinal to Electron `Display.id` correlation     | todo   |
 | T7.2 | Diagnose intermittent `src/process/` test failure                | todo   |
 | T7.3 | Live-verify `startDev()`/`startProduction()` against the example | done   |
-| T7.4 | Soak fuzzer: viewport sizing and single-window targeting         | todo   |
+| T7.4 | Soak fuzzer: viewport sizing and single-window targeting         | done   |
 
 ### T7.1 — Investigate WMI-ordinal to Electron `Display.id` correlation
 
@@ -609,3 +610,7 @@ Separately, `executor.ts`'s `findTargetWindows`/`executeFuzzStep` always fuzzes 
 Neither is a safety or correctness bug — the fuzzer runs, produces a real report, and never crashes because of this — but both reduce how much of a real multi-window/non-1920×1080 kiosk install (exactly this project's actual target shape) actually gets fuzzed.
 
 **Verify:** query each target window's real `getContentBounds()` and pass it into the generator (per-window if bounds differ), and rotate `executeFuzzStep` across all resolved targets rather than only the first. Re-run the live check from T7.3 against a non-default window size and confirm generated coordinates stay within the real bounds, and that a multi-window config exercises more than one window.
+
+**Done.** `ActionGenerator.nextAction()` now takes an optional per-call `viewportWidth`/`viewportHeight`; `executeFuzzStep` queries the real target's `getContentBounds()` at each step rather than using a fixed default. `executeFuzzStep` now takes/returns a `targetIndex`, round-robining across every resolved target window (`startFuzzTimer` threads it through each tick) instead of always fuzzing `targets[0]`. Determinism (same seed → same sequence, given the same bounds inputs) is preserved and covered by a new test.
+
+Live-verified for real against `examples/basic-kiosk`'s two real, non-default 800×600 windows (T6.2): a real 12-action seeded soak targeting both windows produced a report where every click/move coordinate fell within the real 800×600 bounds (nowhere near the original bug's out-of-range ~1920×1080-scale values), and `main`/`touch` alternated perfectly in round-robin order across all 12 steps with 0 crashes.
