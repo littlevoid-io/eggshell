@@ -1,0 +1,20 @@
+{
+  "name": "basic-kiosk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "predev": "npm run build --prefix ../..",
+    "dev": "tsc && electron .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "eggshell": "file:../.."
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.1",
+    "electron": "^44.3.0",
+    "typescript": "^6.0.3"
+  }
+}

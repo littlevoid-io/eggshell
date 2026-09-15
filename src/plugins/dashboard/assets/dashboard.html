@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eggshell Remote Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --card-bg: rgba(22, 27, 34, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --success: #3fb950;
+      --warning: #d29922;
+      --danger: #f85149;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    h1 { font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .badge {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+      background: rgba(63, 185, 80, 0.2);
+      color: var(--success);
+    }
+    .badge.warn { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+    .badge.error { background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+    .auth-bar { display: flex; align-items: center; gap: 8px; }
+    .auth-bar input {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .card-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+    .card-value { font-size: 20px; font-weight: 600; }
+    .card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+    button {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    button:hover { background: rgba(255, 255, 255, 0.15); }
+    button.danger { border-color: rgba(248, 81, 73, 0.4); color: var(--danger); }
+    button.danger:hover { background: rgba(248, 81, 73, 0.2); }
+    .windows-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .windows-table th, .windows-table td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .windows-table th { color: var(--text-muted); font-weight: 500; }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(33, 38, 45, 0.95);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Eggshell Remote Dashboard <span id="statusBadge" class="badge">Connecting</span></h1>
+    <div class="auth-bar">
+      <label for="tokenInput" style="font-size: 12px; color: var(--text-muted);">Token:</label>
+      <input type="password" id="tokenInput" placeholder="Auth Token (if required)" />
+      <button id="saveTokenBtn">Save</button>
+    </div>
+  </header>
+
+  <section class="grid">
+    <div class="card">
+      <div class="card-title">Uptime</div>
+      <div class="card-value" id="uptimeVal">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Platform & Architecture</div>
+      <div class="card-value" id="platformVal">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Memory (RSS / Heap)</div>
+      <div class="card-value" id="memoryVal">--</div>
+      <div class="card-sub" id="heapVal">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Active Windows</div>
+      <div class="card-value" id="windowsCountVal">--</div>
+    </div>
+  </section>
+
+  <h2 class="section-title">Quick Actions</h2>
+  <div class="actions">
+    <button id="reloadBtn">Reload Windows</button>
+    <button id="focusBtn">Focus Windows</button>
+    <button id="restartBtn" class="danger">Restart App</button>
+    <button id="quitBtn" class="danger">Quit App</button>
+  </div>
+
+  <h2 class="section-title">Window Status</h2>
+  <div class="card">
+    <table class="windows-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>URL</th>
+          <th>Bounds</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="windowsBody">
+        <tr><td colspan="4" style="color: var(--text-muted);">No windows detected</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const tokenInput = document.getElementById('tokenInput');
+    const statusBadge = document.getElementById('statusBadge');
+    const toastEl = document.getElementById('toast');
+    tokenInput.value = localStorage.getItem('eggshell_dashboard_token') || '';
+
+    document.getElementById('saveTokenBtn').addEventListener('click', () => {
+      localStorage.setItem('eggshell_dashboard_token', tokenInput.value);
+      showToast('Token saved');
+      fetchStatus();
+    });
+
+    function getHeaders() {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = tokenInput.value.trim();
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      return headers;
+    }
+
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.style.display = 'block';
+      setTimeout(() => { toastEl.style.display = 'none'; }, 3000);
+    }
+
+    function formatUptime(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${h}h ${m}m ${s}s`;
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status', { headers: getHeaders() });
+        if (res.status === 401) {
+          statusBadge.textContent = 'Unauthorized';
+          statusBadge.className = 'badge error';
+          return;
+        }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        renderStatus(data);
+      } catch (err) {
+        statusBadge.textContent = 'Offline';
+        statusBadge.className = 'badge warn';
+      }
+    }
+
+    function renderStatus(data) {
+      statusBadge.textContent = 'Online';
+      statusBadge.className = 'badge';
+      document.getElementById('uptimeVal').textContent = formatUptime(data.uptimeSeconds || 0);
+      document.getElementById('platformVal').textContent = `${data.platform} (${data.arch})`;
+      const memMb = Math.round((data.memoryUsage?.rss || 0) / 1024 / 1024);
+      const heapUsed = Math.round((data.memoryUsage?.heapUsed || 0) / 1024 / 1024);
+      const heapTotal = Math.round((data.memoryUsage?.heapTotal || 0) / 1024 / 1024);
+      document.getElementById('memoryVal').textContent = `${memMb} MB RSS`;
+      document.getElementById('heapVal').textContent = `${heapUsed} / ${heapTotal} MB Heap`;
+      document.getElementById('windowsCountVal').textContent = data.windows?.length || 0;
+
+      const tbody = document.getElementById('windowsBody');
+      if (!data.windows || data.windows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color: var(--text-muted);">No windows detected</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.windows.map(w => `
+        <tr>
+          <td><code>${w.id}</code></td>
+          <td>${w.url || '<span style="color: var(--text-muted)">blank</span>'}</td>
+          <td>${w.bounds ? `${w.bounds.width}×${w.bounds.height} @ (${w.bounds.x}, ${w.bounds.y})` : '--'}</td>
+          <td>${w.isDestroyed ? '<span style="color: var(--danger)">Destroyed</span>' : '<span style="color: var(--success)">Active</span>'}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function sendAction(endpoint, name) {
+      try {
+        const res = await fetch(endpoint, { method: 'POST', headers: getHeaders() });
+        if (res.ok) {
+          showToast(name + ' succeeded');
+          fetchStatus();
+        } else {
+          const body = await res.json().catch(() => ({}));
+          showToast(body.error || (name + ' failed (' + res.status + ')'));
+        }
+      } catch (err) {
+        showToast(name + ' network error');
+      }
+    }
+
+    document.getElementById('reloadBtn').addEventListener('click', () => sendAction('/api/reload-windows', 'Reload windows'));
+    document.getElementById('focusBtn').addEventListener('click', () => sendAction('/api/focus-windows', 'Focus windows'));
+    document.getElementById('restartBtn').addEventListener('click', () => sendAction('/api/restart', 'Restart app'));
+    document.getElementById('quitBtn').addEventListener('click', () => sendAction('/api/quit', 'Quit app'));
+
+    fetchStatus();
+    setInterval(fetchStatus, 3000);
+  </script>
+</body>
+</html>

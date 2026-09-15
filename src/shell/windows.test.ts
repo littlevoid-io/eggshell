@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Display, Input } from 'electron';
+import type { BrowserWindow, Display, Input } from 'electron';
 import {
   applyKioskLock,
   applyPlacement,
@@ -297,13 +297,12 @@ describe('createWindowRegistry', () => {
     expect(registry.list().map(handle => handle.id)).toEqual(['a', 'b']);
   });
 
-  it('does not leak `native` through the WindowRegistry interface at the type level', () => {
-    const registry: WindowRegistry = createWindowRegistry([buildManagedWindow('a')]);
+  it('exposes `native` through the WindowRegistry interface at the type level', () => {
+    const registry: WindowRegistry<BrowserWindow> = createWindowRegistry([buildManagedWindow('a')]);
     const handle = registry.get('a');
 
     expect(handle?.id).toBe('a');
-    // @ts-expect-error -- `native` is not part of the `WindowHandle` type a plugin sees.
-    const native: unknown = handle?.native;
+    const native = handle?.native;
     expect(native).toBeDefined();
   });
 });

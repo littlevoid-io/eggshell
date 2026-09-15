@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import net from 'node:net';
 import http from 'node:http';
 import { waitForReadiness } from './readiness.js';
@@ -26,22 +26,18 @@ afterEach(async () => {
   openServers = [];
 });
 
-/** Binds to port 0 to obtain a genuinely free port, then releases it immediately. */
-async function reserveFreePort(): Promise<number> {
-  const server = net.createServer();
-  const port = await new Promise<number>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, HOST, () => {
-      const address = server.address();
-      if (address === null || typeof address === 'string') {
-        reject(new Error('expected a bound TCP server with a numeric port'));
-        return;
-      }
-      resolve(address.port);
-    });
-  });
-  await new Promise<void>(resolve => server.close(() => resolve()));
-  return port;
+function portOf(server: net.Server | http.Server): number {
+  const address = server.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('expected a bound server with a numeric port');
+  }
+  return address.port;
+}
+
+async function flushAsync(): Promise<void> {
+  for (let i = 0; i < 20; i++) {
+    await Promise.resolve();
+  }
 }
 
 async function listenTcpAt(port: number): Promise<net.Server> {
@@ -128,27 +124,49 @@ describe('waitForReadiness: delay', () => {
 });
 
 describe('waitForReadiness: tcp', () => {
-  it('resolves once a real listener starts, proving the poll works', async () => {
-    const port = await reserveFreePort();
+  it('resolves once a listener starts, proving the poll works', async () => {
+    const clock = createFakeClock();
+    let ready = false;
+    const probeTcp = vi.fn(() => Promise.resolve(ready));
 
-    const promise = waitForReadiness({ kind: 'tcp', port }, { processId: 'p', timeoutMs: 5000 });
+    const promise = waitForReadiness(
+      { kind: 'tcp', port: 12345 },
+      { processId: 'p', timeoutMs: 5000, clock, probeTcp }
+    );
 
-    // Server intentionally starts AFTER the wait begins, so this only passes
-    // if the poll loop actually retries rather than getting lucky once.
-    await new Promise(resolve => setTimeout(resolve, 60));
-    await listenTcpAt(port);
+    await flushAsync();
+    expect(probeTcp).toHaveBeenCalledTimes(1);
+
+    ready = true;
+    clock.advance(50);
+    await flushAsync();
 
     await expect(promise).resolves.toBeUndefined();
+    expect(probeTcp).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves against a real listening TCP socket', async () => {
+    const server = await listenTcpAt(0);
+    const port = portOf(server);
+
+    await expect(
+      waitForReadiness({ kind: 'tcp', port }, { processId: 'p', timeoutMs: 5000 })
+    ).resolves.toBeUndefined();
   });
 
   it('times out with a ProcessError naming the process id and kind', async () => {
-    const port = await reserveFreePort();
+    const clock = createFakeClock();
+    const probeTcp = vi.fn(() => Promise.resolve(false));
 
-    const error = await waitForReadiness(
-      { kind: 'tcp', port },
-      { processId: 'my-proc', timeoutMs: 150 }
-    ).catch((caught: unknown) => caught);
+    const promise = waitForReadiness(
+      { kind: 'tcp', port: 12345 },
+      { processId: 'my-proc', timeoutMs: 150, clock, probeTcp }
+    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(ProcessError);
+    clock.advance(150);
+    await assertion;
 
+    const error = await promise.catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ProcessError);
     const message = (error as ProcessError).message;
     expect(message).toContain('my-proc');
@@ -158,11 +176,11 @@ describe('waitForReadiness: tcp', () => {
 
 describe('waitForReadiness: http', () => {
   it('resolves on a real 200 from a node:http server', async () => {
-    const port = await reserveFreePort();
-    await listenHttpAt(port, (_req, res) => {
+    const server = await listenHttpAt(0, (_req, res) => {
       res.writeHead(200);
       res.end();
     });
+    const port = portOf(server);
 
     await expect(
       waitForReadiness(
@@ -173,23 +191,22 @@ describe('waitForReadiness: http', () => {
   });
 
   it('with expectStatus 204 does not resolve on 200, and resolves on 204', async () => {
-    const port200 = await reserveFreePort();
-    await listenHttpAt(port200, (_req, res) => {
-      res.writeHead(200);
-      res.end();
-    });
+    const clock = createFakeClock();
+    const probeHttp = vi.fn(() => Promise.resolve(false));
 
-    const error = await waitForReadiness(
-      { kind: 'http', url: `http://${HOST}:${port200}/`, expectStatus: 204 },
-      { processId: 'p', timeoutMs: 150 }
-    ).catch((caught: unknown) => caught);
-    expect(error).toBeInstanceOf(ProcessError);
+    const timeoutPromise = waitForReadiness(
+      { kind: 'http', url: `http://${HOST}:12345/`, expectStatus: 204 },
+      { processId: 'p', timeoutMs: 150, clock, probeHttp }
+    );
+    const assertion = expect(timeoutPromise).rejects.toBeInstanceOf(ProcessError);
+    clock.advance(150);
+    await assertion;
 
-    const port204 = await reserveFreePort();
-    await listenHttpAt(port204, (_req, res) => {
+    const server204 = await listenHttpAt(0, (_req, res) => {
       res.writeHead(204);
       res.end();
     });
+    const port204 = portOf(server204);
 
     await expect(
       waitForReadiness(
@@ -200,20 +217,24 @@ describe('waitForReadiness: http', () => {
   });
 
   it('retries through an initial connection-refused and then succeeds', async () => {
-    const port = await reserveFreePort();
+    const clock = createFakeClock();
+    let ready = false;
+    const probeHttp = vi.fn(() => Promise.resolve(ready));
 
     const promise = waitForReadiness(
-      { kind: 'http', url: `http://${HOST}:${port}/` },
-      { processId: 'p', timeoutMs: 5000 }
+      { kind: 'http', url: `http://${HOST}:12345/` },
+      { processId: 'p', timeoutMs: 5000, clock, probeHttp }
     );
 
-    await new Promise(resolve => setTimeout(resolve, 60));
-    await listenHttpAt(port, (_req, res) => {
-      res.writeHead(200);
-      res.end();
-    });
+    await flushAsync();
+    expect(probeHttp).toHaveBeenCalledTimes(1);
+
+    ready = true;
+    clock.advance(50);
+    await flushAsync();
 
     await expect(promise).resolves.toBeUndefined();
+    expect(probeHttp).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -300,18 +321,24 @@ describe('waitForReadiness: abort', () => {
   it('aborts a tcp poll in progress with no pending fake-clock timers', async () => {
     const clock: FakeClock = createFakeClock();
     const controller = new AbortController();
-    const port = await reserveFreePort();
-
-    const promise = waitForReadiness(
-      { kind: 'tcp', port },
-      { processId: 'my-proc', timeoutMs: 5000, clock, signal: controller.signal }
+    const probeTcp = vi.fn(
+      (_port: number, signal: AbortSignal) =>
+        new Promise<boolean>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('aborted')));
+        })
     );
 
-    await Promise.resolve();
+    const promise = waitForReadiness(
+      { kind: 'tcp', port: 12345 },
+      { processId: 'my-proc', timeoutMs: 5000, clock, signal: controller.signal, probeTcp }
+    );
+
+    await flushAsync();
     controller.abort();
 
     const error = await promise.catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ProcessError);
+    expect((error as ProcessError).message).toContain('my-proc');
     expect(clock.pendingCount).toBe(0);
   });
 });

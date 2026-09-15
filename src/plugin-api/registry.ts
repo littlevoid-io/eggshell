@@ -40,37 +40,38 @@ const emptyWindowRegistry: WindowRegistry = {
   list: () => [],
 };
 
-export interface PluginRegistryOptions {
+export interface PluginRegistryOptions<TNative = unknown> {
   roots: ShellRoots;
   logger?: Logger;
   /** `config.plugins` from the validated `ShellConfig` — each plugin sees only its own `[id]` slice. */
   pluginConfig?: ShellConfig['plugins'];
-  windows?: WindowRegistry;
+  windows?: WindowRegistry<TNative>;
 }
 
-export class PluginRegistry {
+export class PluginRegistry<TNative = unknown> {
   private readonly roots: ShellRoots;
   private readonly logger: Logger;
   private readonly pluginConfig: ShellConfig['plugins'] | undefined;
-  private readonly windows: WindowRegistry;
+  private readonly windows: WindowRegistry<TNative>;
 
-  private readonly plugins = new Map<string, ShellPlugin>();
+  private readonly plugins = new Map<string, ShellPlugin<TNative>>();
   private readonly setupSucceededIds: string[] = [];
   private readonly failures: PluginFailure[] = [];
   private readonly ipc = new NamespacedHandlers<[IpcInvocation, ...unknown[]]>();
   private readonly commands = new NamespacedHandlers<unknown[]>();
   private readonly status = new StatusStore();
+  private readonly abortControllers = new Map<string, AbortController>();
   private closed = false;
 
-  constructor(options: PluginRegistryOptions) {
+  constructor(options: PluginRegistryOptions<TNative>) {
     this.roots = options.roots;
     this.logger = options.logger ?? noopLogger;
     this.pluginConfig = options.pluginConfig;
-    this.windows = options.windows ?? emptyWindowRegistry;
+    this.windows = options.windows ?? (emptyWindowRegistry as WindowRegistry<TNative>);
   }
 
   /** Adds a plugin. Throws `PluginError` on a duplicate id or once setup has closed. */
-  register(plugin: ShellPlugin): void {
+  register(plugin: ShellPlugin<TNative>): void {
     if (this.closed) {
       throw new PluginError(
         `Cannot register plugin "${plugin.id}": the plugin seam has already closed setup.`,
@@ -107,15 +108,17 @@ export class PluginRegistry {
   async teardownAll(): Promise<readonly PluginFailure[]> {
     const teardownFailures: PluginFailure[] = [];
     for (const pluginId of [...this.setupSucceededIds].reverse()) {
+      this.abortControllers.get(pluginId)?.abort();
       const plugin = this.plugins.get(pluginId);
-      if (!plugin?.teardown) {
-        continue;
+      if (plugin?.teardown) {
+        try {
+          await plugin.teardown();
+        } catch (error) {
+          teardownFailures.push(this.recordFailure(pluginId, 'teardown', error));
+        }
       }
-      try {
-        await plugin.teardown();
-      } catch (error) {
-        teardownFailures.push(this.recordFailure(pluginId, 'teardown', error));
-      }
+      this.ipc.clearNamespace(pluginId);
+      this.commands.clearNamespace(pluginId);
     }
     return teardownFailures;
   }
@@ -159,7 +162,9 @@ export class PluginRegistry {
     return this.closed;
   }
 
-  private createContextFor(pluginId: string): ShellContext {
+  private createContextFor(pluginId: string): ShellContext<TNative> {
+    const abortController = new AbortController();
+    this.abortControllers.set(pluginId, abortController);
     return createShellContext({
       pluginId,
       roots: this.roots,
@@ -170,6 +175,7 @@ export class PluginRegistry {
       onRegisterCommand: (name, handler) => this.registerCommand(pluginId, name, handler),
       onPublishStatus: value => this.status.publish(pluginId, value),
       onReadStatus: () => this.status.read(pluginId),
+      signal: abortController.signal,
     });
   }
 

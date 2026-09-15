@@ -5,6 +5,7 @@ import {
   LayoutError,
   ProcessError,
   BuildError,
+  LaunchError,
   PluginError,
   isEggshellError,
 } from './errors.js';
@@ -35,6 +36,11 @@ describe('EggshellError subclasses', () => {
       name: 'BuildError',
       code: 'ERR_EGGSHELL_BUILD',
       build: cause => new BuildError('build failed', { cause }),
+    },
+    {
+      name: 'LaunchError',
+      code: 'ERR_EGGSHELL_LAUNCH',
+      build: cause => new LaunchError('launch failed', { cause }),
     },
     {
       name: 'PluginError',

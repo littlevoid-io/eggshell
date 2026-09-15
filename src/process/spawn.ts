@@ -19,6 +19,7 @@
 // `shell: true` and confirming eslint fires on it.
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { ProcessError } from '../errors.js';
 import { noopLogger, type Logger } from '../logging/logger.js';
 import type { ProcessConfig } from '../config/types.js';
@@ -30,22 +31,32 @@ export type SpawnManagedOptions = Pick<ProcessConfig, 'id' | 'command' | 'args' 
 };
 
 /**
- * Characters that only mean something to a shell — or that signal the caller
- * joined a command and its arguments into one string. `spawn` never invokes
- * a shell, so `command: "node -e 1"` is not "run node with -e 1"; it is
- * looked up, verbatim, as the name of a single executable called
- * `node -e 1`, which fails with an obscure ENOENT instead of doing what it
- * visually looks like it should. Catch that early and point at `args`.
- *
- * Deliberately chosen set: whitespace (multiple tokens belong in `args`, not
- * `command`) plus the shell operators/quoting that never legitimately appear
- * inside a single executable name or path: `&`, `|`, `;`, backtick,
+ * Shell operators/quoting that never legitimately appear inside a single
+ * executable name or path, regardless of platform: `&`, `|`, `;`, backtick,
  * `$`, `(`, `)`, `<`, `>`, `"`, `'`. Backslash and colon are deliberately
  * EXCLUDED — both are legitimate in a Windows path (`C:\Program
  * Files\node\node.exe`), and rejecting them would make real absolute paths
- * unusable as `command`.
+ * unusable as `command`. Always rejected, with no exception — `spawn` never
+ * invokes a shell, so none of these can legitimately do anything to a real
+ * OS, and none has ever been observed in a genuine executable path.
  */
-const SHELL_METACHARACTER_PATTERN = /[\s&|;`$()<>"']/;
+const SHELL_METACHARACTER_PATTERN = /[&|;`$()<>"']/;
+
+/**
+ * Whitespace alone is *not* a shell metacharacter under `shell: false` —
+ * `C:\Program Files\node\node.exe` (the very example above) contains one and
+ * is a completely ordinary, real path. What whitespace actually signals is
+ * ambiguous: it's either a real path that happens to contain a space, or the
+ * caller joined a command and its arguments into one string —
+ * `command: "node -e 1"` is not "run node with -e 1" under `shell: false`;
+ * it is looked up, verbatim, as the name of a single executable called
+ * `node -e 1`, which fails with an obscure ENOENT instead of doing what it
+ * visually looks like it should. Resolve the ambiguity the only reliable
+ * way: a real, existing file wins (`assertSafeCommand` below checks this
+ * synchronously before rejecting), since a mashed-together `command args`
+ * string essentially never exists as a literal filename on disk.
+ */
+const WHITESPACE_PATTERN = /\s/;
 
 /**
  * Minimal environment base a Windows child process genuinely needs to start
@@ -88,17 +99,26 @@ function buildChildEnv(
 }
 
 function assertSafeCommand(id: string, command: string): void {
-  if (!SHELL_METACHARACTER_PATTERN.test(command)) {
-    return;
+  if (SHELL_METACHARACTER_PATTERN.test(command)) {
+    throw new ProcessError(
+      `process "${id}": command ${JSON.stringify(command)} contains a shell metacharacter. ` +
+        'spawnManaged never uses a shell, so none of these can do anything useful in a real ' +
+        'command — this is almost certainly a mistake. Split any arguments into "args" ' +
+        '(a separate argv array), never joined into "command".',
+      { processId: id }
+    );
   }
-  throw new ProcessError(
-    `process "${id}": command ${JSON.stringify(command)} contains whitespace or a shell ` +
-      'metacharacter. spawnManaged never uses a shell, so a joined string like "node -e 1" is ' +
-      'looked up as one literal executable name and fails obscurely instead of doing what it ' +
-      'looks like it should. Split it into "command" (the executable only) and "args" (the ' +
-      'separate argv array).',
-    { processId: id }
-  );
+  if (WHITESPACE_PATTERN.test(command) && !existsSync(command)) {
+    throw new ProcessError(
+      `process "${id}": command ${JSON.stringify(command)} contains whitespace and is not a ` +
+        'real, existing file. spawnManaged never uses a shell, so a joined string like ' +
+        '"node -e 1" is looked up as one literal executable name and fails obscurely instead ' +
+        'of doing what it looks like it should. Split it into "command" (the executable only) ' +
+        'and "args" (the separate argv array) — or, if this really is meant to be a single ' +
+        'path containing a space, double-check it actually exists.',
+      { processId: id }
+    );
+  }
 }
 
 /**

@@ -188,6 +188,7 @@ function buildFakeBrowserWindow(onWebContentsEvent?: (event: string) => void) {
     restore: vi.fn(),
     focus: vi.fn(),
     destroy: vi.fn(),
+    loadURL: vi.fn(() => Promise.resolve()),
     webContents: buildFakeWebContents(onWebContentsEvent),
   };
 }
@@ -509,6 +510,50 @@ describe('launch', () => {
       expect(result.windows).toHaveLength(2);
     }
     expect(ipcMain.handle).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads each window\'s configured url - a window must never stay blank', async () => {
+    const fakeWindows: ReturnType<typeof buildFakeBrowserWindow>[] = [];
+    const browserWindowFactory = vi.fn(() => {
+      const fake = buildFakeBrowserWindow();
+      fakeWindows.push(fake);
+      return fake as unknown as BrowserWindow;
+    });
+    const options = buildBaseOptions({
+      browserWindowFactory,
+      config: buildRawConfig({
+        windows: [
+          { id: 'main', url: 'https://example.test/main', target: { kind: 'primary' } },
+          { id: 'second', url: 'https://example.test/second', target: { kind: 'primary' } },
+        ],
+      }),
+    });
+
+    const result = await launch(options);
+
+    expect(result.launched).toBe(true);
+    expect(fakeWindows).toHaveLength(2);
+    expect(fakeWindows[0]?.loadURL).toHaveBeenCalledWith('https://example.test/main');
+    expect(fakeWindows[1]?.loadURL).toHaveBeenCalledWith('https://example.test/second');
+  });
+
+  it('logs and swallows a loadURL rejection instead of failing launch', async () => {
+    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const browserWindowFactory = vi.fn(() => {
+      const fake = buildFakeBrowserWindow();
+      fake.loadURL = vi.fn(() => Promise.reject(new Error('net::ERR_CONNECTION_REFUSED')));
+      return fake as unknown as BrowserWindow;
+    });
+    const options = buildBaseOptions({ browserWindowFactory, logger });
+
+    const result = await launch(options);
+    await flushAsync();
+
+    expect(result.launched).toBe(true);
+    expect(logger.error).toHaveBeenCalledWith(
+      'launch: failed to load window content',
+      expect.objectContaining({ windowId: 'main', url: 'https://example.test/' })
+    );
   });
 
   it('keeps the IPC allow-list live: a channel a plugin registers during setup() is reachable afterwards', async () => {

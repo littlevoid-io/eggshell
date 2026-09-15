@@ -11,6 +11,7 @@ export {
   EggshellError,
   LayoutError,
   BuildError,
+  LaunchError,
   ProcessError,
   PluginError,
   ConfigError,
@@ -55,3 +56,29 @@ export type { LogLevel, LogFields, Logger } from './logging/index.js';
 
 export { launch } from './shell/launch.js';
 export type { LaunchApp, LaunchOptions, LaunchResult } from './shell/launch.js';
+
+export { systemClock } from './clock.js';
+export type { Clock } from './clock.js';
+
+export { build } from './build/build.js';
+export type { BuildOptions, BuildResult } from './build/build.js';
+export { readManifest } from './build/manifest.js';
+export type { LaunchManifest } from './build/manifest.js';
+export { startDev } from './build/dev.js';
+export type { DevOptions } from './build/dev.js';
+export { startProduction } from './build/start.js';
+export type { ProductionOptions } from './build/start.js';
+export type { StartHandle } from './build/runner.js';
+export { runDoctor, aggregateDoctorStatus } from './build/doctor.js';
+export type {
+  DoctorStatus,
+  DoctorCheck,
+  DoctorReport,
+  DoctorOptions,
+  GetDisplaysFn,
+  ResolveElectronFn,
+  PortCheckFn,
+  AssetExistsFn,
+} from './build/doctor.js';
+export { scaffoldProject } from './build/init.js';
+export type { ScaffoldOptions, ScaffoldResult } from './build/init.js';

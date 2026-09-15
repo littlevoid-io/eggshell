@@ -48,6 +48,16 @@ export class NamespacedHandlers<Args extends unknown[]> {
   keys(): readonly string[] {
     return [...this.handlers.keys()];
   }
+
+  /** Removes all handlers registered by the specified plugin. */
+  clearNamespace(pluginId: string): void {
+    const prefix = `${pluginId}:`;
+    for (const key of this.handlers.keys()) {
+      if (key.startsWith(prefix)) {
+        this.handlers.delete(key);
+      }
+    }
+  }
 }
 
 /** Per-plugin last-published status value, keyed by plugin id (not namespaced further — one value per plugin). */

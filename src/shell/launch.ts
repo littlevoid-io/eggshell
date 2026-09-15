@@ -56,7 +56,7 @@
  * `shutdownAll`, with no separate tracking wrapper around `spawn` needed.
  */
 
-import type { IpcMain, Screen, WebContents } from 'electron';
+import type { BrowserWindow, IpcMain, Screen, WebContents } from 'electron';
 
 import { LayoutError } from '../errors.js';
 import type { Clock } from '../clock.js';
@@ -144,7 +144,7 @@ export interface LaunchOptions {
   readonly touchProbe?: TouchProbe;
   /** Defaults to `spawnManaged`. Injectable so tests never launch a real process. */
   readonly spawn?: SpawnFn;
-  readonly plugins?: readonly ShellPlugin[];
+  readonly plugins?: readonly ShellPlugin<BrowserWindow>[];
   /** Skips kiosk escape/devtools blocking. Default `false`. */
   readonly isDevelopment?: boolean;
   readonly watchdog?: Partial<Omit<WatchdogOptions, 'clock' | 'logger' | 'reload'>>;
@@ -166,7 +166,7 @@ export type LaunchResult =
   | {
       readonly launched: true;
       readonly windows: readonly ManagedWindow[];
-      readonly pluginRegistry: PluginRegistry;
+      readonly pluginRegistry: PluginRegistry<BrowserWindow>;
       /** Runs the full shutdown sequence once. Also wired automatically to `before-quit`. */
       readonly shutdown: () => Promise<void>;
     }
@@ -441,6 +441,18 @@ function buildWindows(
     applyPermissionHandlers(window.native.webContents.session, shellConfig.permissions, logger);
     applyNavigationGuards(window.native.webContents, allowedOriginsFor(windowConfig.url), logger);
 
+    // Fire-and-forget: a kiosk shell must never block startup on content
+    // loading (a slow/unreachable URL is exactly the failure mode this
+    // package's founding lockup story warns against). The window is created
+    // and placed regardless; a load failure is logged, not thrown.
+    void window.native.loadURL(windowConfig.url).catch((error: unknown) => {
+      logger.error('launch: failed to load window content', {
+        windowId: window.id,
+        url: windowConfig.url,
+        error: describeError(error),
+      });
+    });
+
     if (windowConfig.showWhenReady) {
       window.native.show();
     }
@@ -541,7 +553,7 @@ interface LaunchState {
   readonly watchdog: Watchdog;
   readonly displayBridge: DisplayEventBridge;
   readonly ipcHandle: IpcBridgeHandle;
-  readonly pluginRegistry: PluginRegistry;
+  readonly pluginRegistry: PluginRegistry<BrowserWindow>;
   readonly processSupervisor: ProcessSupervisor;
 }
 

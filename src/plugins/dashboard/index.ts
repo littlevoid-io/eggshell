@@ -1,9 +1,19 @@
 /**
- * `dashboard` plugin — not yet implemented. Owned by Phase 4 (see
- * ROADMAP.md). This stub exists only so the package's `exports` map
- * (T1.7) resolves to a real file; it deliberately exposes no plugin
- * object, since a no-op `setup()` would look wired up while doing
- * nothing.
+ * Public exports for the `dashboard` plugin (T4.2).
  */
 
-export const PLUGIN_ID = 'dashboard';
+export { PLUGIN_ID, createDashboardPlugin } from './plugin.js';
+export type { DashboardPluginOptions } from './plugin.js';
+export { dashboardConfigSchema, validateDashboardConfig } from './schema.js';
+export { DashboardServer } from './server.js';
+export type { DashboardServerOptions } from './server.js';
+export { createDashboardRouter } from './router.js';
+export type { DashboardRouterOptions } from './router.js';
+export { constantTimeEquals, extractToken, createAuthMiddleware } from './auth.js';
+export { buildDashboardStatus, createDashboardActions } from './status.js';
+export type {
+  DashboardConfig,
+  DashboardStatus,
+  DashboardActions,
+  WindowSummary,
+} from './types.js';

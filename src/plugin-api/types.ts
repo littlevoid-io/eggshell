@@ -9,20 +9,22 @@
 import type { Logger } from '../logging/logger.js';
 import type { ShellRoots } from '../paths/roots.js';
 
-export interface ShellPlugin {
+export interface ShellPlugin<TNative = unknown> {
   id: string;
-  setup(context: ShellContext): void | Promise<void>;
+  setup(context: ShellContext<TNative>): void | Promise<void>;
   teardown?(): void | Promise<void>;
 }
 
 /**
- * Opaque handle for a window, supplied by the shell layer at runtime. Not
- * typed against Electron's `BrowserWindow` — this module must stay
- * Electron-free and unit-testable without a display. A plugin never
+ * Handle for a window, supplied by the shell layer at runtime. Generic over
+ * `TNative` (defaulting to `unknown` so this module stays Electron-free and
+ * unit-testable without a display). A plugin parameterized with a real window
+ * type (e.g. `BrowserWindow`) sees `native` typed strongly. A plugin never
  * constructs one of these; it only ever receives them from `WindowRegistry`.
  */
-export interface WindowHandle {
+export interface WindowHandle<TNative = unknown> {
   readonly id: string;
+  readonly native?: TNative;
 }
 
 /**
@@ -39,9 +41,9 @@ export interface WindowHandle {
  * needs it (a connectivity-reactive overlay is the likely first case)
  * rather than guessing its shape now.
  */
-export interface WindowRegistry {
-  get(id: string): WindowHandle | undefined;
-  list(): readonly WindowHandle[];
+export interface WindowRegistry<TNative = unknown> {
+  get(id: string): WindowHandle<TNative> | undefined;
+  list(): readonly WindowHandle<TNative>[];
 }
 
 /**
@@ -93,8 +95,8 @@ export interface StatusPublisher {
   read(): unknown;
 }
 
-export interface ShellContext {
-  readonly windows: WindowRegistry;
+export interface ShellContext<TNative = unknown> {
+  readonly windows: WindowRegistry<TNative>;
   readonly ipc: IpcRegistrar;
   readonly commands: CommandRegistrar;
   readonly status: StatusPublisher;
@@ -110,6 +112,12 @@ export interface ShellContext {
    * this seam exists to prevent.
    */
   readonly config: unknown;
+  /**
+   * Signal aborted if the plugin is tearing down or the shell is closing.
+   * Plugins with an async setup should check this signal after yielding,
+   * before performing side effects like registering a handler or creating a view.
+   */
+  readonly signal: AbortSignal;
 }
 
 /** One plugin's `setup`/`teardown` failure, isolated so it never aborts the others. */
