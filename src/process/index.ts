@@ -10,7 +10,12 @@ export type {
 } from './types.js';
 export { LINE_REPLAY_BUFFER_SIZE } from './types.js';
 export { waitForReadiness } from './readiness.js';
-export type { ReadinessProbe, ReadinessContext } from './readiness.js';
+export type {
+  ReadinessProbe,
+  ReadinessContext,
+  ProbeTcpFn,
+  ProbeHttpFn,
+} from './readiness.js';
 export { createProcessSupervisor } from './supervisor.js';
 export type {
   ProcessSupervisor,

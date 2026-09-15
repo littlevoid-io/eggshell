@@ -27,6 +27,13 @@ import type { ProcessLine, ProcessLineStream } from './types.js';
 /** The `readiness` union already validated by `config/schema.ts` — reused, not redefined. */
 export type ReadinessProbe = ProcessConfig['readiness'];
 
+export type ProbeTcpFn = (port: number, signal: AbortSignal) => Promise<boolean>;
+export type ProbeHttpFn = (
+  url: string,
+  expectStatus: number | undefined,
+  signal: AbortSignal
+) => Promise<boolean>;
+
 export interface ReadinessContext {
   readonly processId: string;
   readonly timeoutMs: number;
@@ -36,6 +43,8 @@ export interface ReadinessContext {
   readonly logger?: Logger;
   /** Required for the `log` probe; ignored by every other kind. */
   readonly lines?: ProcessLineStream;
+  readonly probeTcp?: ProbeTcpFn;
+  readonly probeHttp?: ProbeHttpFn;
 }
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -103,7 +112,7 @@ async function runWithDeadline(
   try {
     await task(combinedController.signal);
   } catch (error) {
-    if (!(error instanceof ReadinessSignalAbortedError)) {
+    if (!(error instanceof ReadinessSignalAbortedError) && !combinedController.signal.aborted) {
       throw error;
     }
     const elapsedMs = clock.now() - startedAt;
@@ -349,14 +358,19 @@ export async function waitForReadiness(
 
     case 'tcp':
       await runWithDeadline(processId, probe.kind, timeoutMs, clock, signal, combinedSignal =>
-        pollUntilReady(abortable => probeTcpOnce(probe.port, abortable), clock, combinedSignal)
+        pollUntilReady(
+          abortable => (context.probeTcp ?? probeTcpOnce)(probe.port, abortable),
+          clock,
+          combinedSignal
+        )
       );
       return;
 
     case 'http':
       await runWithDeadline(processId, probe.kind, timeoutMs, clock, signal, combinedSignal =>
         pollUntilReady(
-          abortable => probeHttpOnce(probe.url, probe.expectStatus, abortable),
+          abortable =>
+            (context.probeHttp ?? probeHttpOnce)(probe.url, probe.expectStatus, abortable),
           clock,
           combinedSignal
         )
