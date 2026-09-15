@@ -2,6 +2,7 @@
  * Soak-test interaction fuzzer plugin implementation (T4.4).
  */
 
+// Deliberate lint exemption (I5b): fuzz-testing requires broad Electron access by design.
 import * as electron from 'electron';
 import type { BrowserWindow } from 'electron';
 import { PluginError } from '../../errors.js';

@@ -17,6 +17,8 @@ const PLUGIN_IMPORT_GROUP = [
 
 const PLUGIN_ZONE_MESSAGE =
   'Plugins may only depend on the plugin-api seam (I5): plugin-api, config, errors, logging. Core internals are off-limits.';
+const PLUGIN_ELECTRON_MESSAGE =
+  'Plugins may not import electron directly (I5b) -- reach Electron only through the ShellContext seam (windows, views, ...). The two narrow, deliberate exceptions are src/plugins/offline/probe.ts (net.isOnline(), no non-Electron equivalent) and src/plugins/soak/** (a fuzz-testing plugin that needs broad Electron access by design). import type is always allowed -- it carries no runtime capability.';
 
 const SHELL_SPAWN_MESSAGE =
   'Child processes must never spawn through a shell (I2). Use an argv array via spawn/execFile, never a joined command string.';
@@ -181,6 +183,20 @@ export default tseslint.config(
               message: PLUGIN_ZONE_MESSAGE,
             },
           ],
+        },
+      ],
+    },
+  },
+
+  // I5b — plugins may not import electron directly; must use ShellContext (views, windows).
+  {
+    files: ['src/plugins/**/*.ts'],
+    ignores: ['src/plugins/offline/probe.ts', 'src/plugins/offline/probe.test.ts', 'src/plugins/soak/**'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'electron', message: PLUGIN_ELECTRON_MESSAGE, allowTypeImports: true }],
         },
       ],
     },

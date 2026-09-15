@@ -28,7 +28,7 @@ layout   process     pure: resolver, supervisor state machines, spawn, readiness
 config  paths  errors  logging      pure: zod schema, explicit roots, Logger interface
 ```
 
-Plugins (`src/plugins/**`) live outside this stack and can only import from `plugin-api`, `config`, `errors`, and `logging`.
+Plugins (`src/plugins/**`) live outside this stack and depend only on `plugin-api`, `config`, `errors`, and `logging` -- enforced by lint. Two narrow, deliberate exceptions to "no direct Electron access" exist and are lint-exempted by name: `plugins/offline/probe.ts` (`net.isOnline()`, no non-Electron equivalent) and `plugins/soak/**` (a fuzz-testing plugin that needs broad Electron access by design). Everything else, including attaching an overlay view, goes through the `views` capability on `ShellContext` -- see Plugin seam below.
 
 | Layer           | What it's for                                                       |
 | --------------- | ------------------------------------------------------------------- |
@@ -61,7 +61,7 @@ interface ShellPlugin {
 }
 ```
 
-A plugin gets a `ShellContext` with access to windows, IPC, commands, status, a logger, the resolved roots, and its own slice of config (`config.plugins[id]`). If a plugin's `setup` throws, that one plugin is marked failed and logged, and everything else keeps running.
+A plugin gets a `ShellContext` with access to windows, a `views` capability for attaching overlay content without touching Electron directly, IPC, commands, status, a logger, the resolved roots, and its own slice of config (`config.plugins[id]`). If a plugin's `setup` throws, that one plugin is marked failed and logged, and everything else keeps running.
 
 ## Toolchain
 

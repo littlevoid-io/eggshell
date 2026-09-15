@@ -5,6 +5,7 @@
  * an HTTP endpoint.
  */
 
+// Deliberate lint exemption (I5b): OS-level network connectivity check with no non-Electron equivalent.
 import { net } from 'electron';
 import type { Logger } from '../../logging/logger.js';
 import { noopLogger } from '../../logging/logger.js';
