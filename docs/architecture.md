@@ -2,17 +2,15 @@
 
 `eggshell` is an Electron kiosk-launcher you use as a library: call `launch(config)` from your own Electron main file, and it handles window management and process supervision, with plugins available if you need them. It can also build a standalone executable and write a launch manifest alongside it, so a separate provisioning tool can find and start your app on its own.
 
-## Explicit roots
+## Roots
 
-Eggshell never guesses at your project's layout — you always tell it where things live:
+Eggshell resolves three root paths, always passed in explicitly rather than found by searching the filesystem:
 
 | Root           | Where it comes from                                                |
 | -------------- | ------------------------------------------------------------------ |
 | `packageRoot`  | figured out automatically from eggshell's own location             |
 | `projectRoot`  | you provide this                                                   |
 | `userDataRoot` | you provide this too, usually Electron's `app.getPath('userData')` |
-
-There's no searching up the folder tree, no relying on a particular folder name, and no reading `process.cwd()` outside the CLI.
 
 ## Layers
 
@@ -30,47 +28,28 @@ layout   process     pure: resolver, supervisor state machines, spawn, readiness
 config  paths  errors  logging      pure: zod schema, explicit roots, Logger interface
 ```
 
-Plugins (`src/plugins/**`) live outside this stack — they can only import from `plugin-api`, `config`, `errors`, and `logging`, and nothing in the stack imports a plugin.
+Plugins (`src/plugins/**`) live outside this stack and can only import from `plugin-api`, `config`, `errors`, and `logging`.
 
-| Layer           | What it's for                                                       | What it avoids                                       |
-| --------------- | ------------------------------------------------------------------- | ---------------------------------------------------- |
-| `config`        | validating config with zod, merging in deployment overrides         | function values in config; reading env vars          |
-| `paths`         | resolving roots, checking paths stay contained                      | walking up the filesystem                            |
-| `errors`        | a typed error hierarchy that always names a field path              | calling `process.exit`                               |
-| `logging`       | a simple `Logger` interface, plus basic implementations             | a hardcoded registry of loggers or colors            |
-| `layout`        | working out window placement, and the state machine that applies it | doing any I/O or `await`ing anything in `resolve.ts` |
-| `process`       | checking ports, spawning processes, readiness checks, restarts      | building a shell string instead of an argv array     |
-| `plugin-api`    | the `ShellContext` seam that plugins hook into                      | importing any plugin itself                          |
-| `shell`         | wiring the pure layers up to real Electron APIs                     | making its own placement decisions                   |
-| `cli` / `build` | thin command-line wrappers over the library's own functions         | being the only way to do something                   |
+| Layer           | What it's for                                                       |
+| --------------- | ------------------------------------------------------------------- |
+| `config`        | validating config with zod, merging in deployment overrides         |
+| `paths`         | resolving roots, checking paths stay contained                      |
+| `errors`        | a typed error hierarchy that always names a field path              |
+| `logging`       | a simple `Logger` interface, plus basic implementations             |
+| `layout`        | working out window placement, and the state machine that applies it |
+| `process`       | checking ports, spawning processes, readiness checks, restarts      |
+| `plugin-api`    | the `ShellContext` seam that plugins hook into                      |
+| `shell`         | wiring the pure layers up to real Electron APIs                     |
+| `cli` / `build` | thin command-line wrappers over the library's own functions         |
 
-## Invariants
+## Reliability
 
-A handful of rules the codebase enforces with lint rules or tests, not just convention:
+A few properties fall out of how things are built:
 
-| #   | Rule                                                                                         | How it's enforced                                                     |
-| --- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| I1  | No path is ever discovered by walking up the filesystem — all roots are explicit.            | `paths/roots.ts`, a lint rule banning `process.cwd()` outside the CLI |
-| I2  | Child processes are always spawned with an argv array, never a shell string.                 | `process/spawn.ts`, a lint rule banning a `shell` option              |
-| I3  | Nothing binds to a non-loopback interface or grants a permission without an explicit opt-in. | schema checks, default-value tests                                    |
-| I4  | Config is plain, JSON-serializable data — never contains functions.                          | the zod schema, a JSON round-trip test                                |
-| I5  | The core never imports a plugin, in either direction.                                        | lint import rules                                                     |
-| I6  | Only `src/cli/bin.ts` is allowed to call `process.exit()`.                                   | a lint rule                                                           |
-| I7  | Every validation failure names the exact field that's wrong.                                 | `ConfigError.issues`                                                  |
-| I8  | No nested `npm install` or on-the-fly compiling when a consumer builds or runs their app.    | plugin assets are prebuilt                                            |
-| I9  | Layout resolution is a pure function — no I/O, nothing async.                                | a lint rule banning Node built-ins in `layout/resolve.ts`             |
-| I10 | Any check that touches the OS is async, has a real timeout, and sits behind an interface.    | the `TouchProbe` interface                                            |
-
-Layout resolution gets display and touch info handed to it rather than looking it up itself, and any check that does touch the OS runs async with a real timeout, hidden behind a small interface. That combination means a slow or hanging OS call can never freeze the rest of the app.
-
-## Config layering
-
-There are exactly two layers, applied in order:
-
-1. The config object you pass to `launch()`.
-2. One optional JSON file that can override it — at `config.deploymentOverridePath`, or `<userDataRoot>/eggshell.deployment.json` by default.
-
-The merged result goes through the same validation as regular config, so a typo in the override file gives you a clear error instead of a blank window. There's deliberately no other way to configure eggshell — no environment variables, no `.env` files, no CLI flags feeding into it. The override file exists specifically so a provisioning tool can adjust a deployed machine's config without rebuilding anything.
+- Validation errors always name the exact field that's wrong, so a typo in your config gives you a clear message instead of a mysterious failure.
+- Config is plain, JSON-serializable data — there's no way to pass a function into it, and no environment variables or CLI flags feed into it either. The only other input is one optional JSON override file (at `config.deploymentOverridePath`, or `<userDataRoot>/eggshell.deployment.json` by default), meant for a provisioning tool to adjust a deployed machine without rebuilding. It goes through the same validation as regular config.
+- Anything that checks the OS (like probing for a touch-capable display) runs asynchronously with a real timeout, so a slow or hanging OS call can never freeze the app.
+- Child processes are spawned as an argv array, never a shell string, and nothing binds to a non-loopback network interface without an explicit opt-in.
 
 ## Plugin seam
 
@@ -82,7 +61,7 @@ interface ShellPlugin {
 }
 ```
 
-A plugin gets a `ShellContext` with access to windows, IPC, commands, status, a logger, the resolved roots, and its own slice of config (`config.plugins[id]`). Plugins only ever register into this context — the core never reaches into a plugin directly. If a plugin's `setup` throws, that one plugin is marked failed and logged, and everything else keeps running.
+A plugin gets a `ShellContext` with access to windows, IPC, commands, status, a logger, the resolved roots, and its own slice of config (`config.plugins[id]`). If a plugin's `setup` throws, that one plugin is marked failed and logged, and everything else keeps running.
 
 ## Toolchain
 
