@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { spawn as nodeSpawn } from 'node:child_process';
+import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { ProcessError } from '../errors.js';
 import { spawnManaged } from './spawn.js';
 import type { ManagedProcess, ProcessLine } from './types.js';
@@ -48,6 +51,27 @@ describe('spawnManaged', () => {
       ProcessError
     );
     expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('allows a real, existing executable whose own path contains whitespace', async () => {
+    // Regression: a built app's path (e.g. electron-builder's default
+    // "<productName>.exe" naming) routinely contains a space — this must
+    // never be confused with a mashed-together "command args" string.
+    const dir = mkdtempSync(path.join(tmpdir(), 'eggshell spawn test '));
+    const spacedPath = path.join(dir, 'has space.exe');
+    try {
+      copyFileSync(process.execPath, spacedPath);
+      const managed = spawnManaged({
+        id: 'spaced-path',
+        command: spacedPath,
+        args: ['-e', 'process.exit(0)'],
+      });
+      await managed.exited;
+      expect(mockedSpawn).toHaveBeenCalledTimes(1);
+      expect(mockedSpawn.mock.calls[0]![0]).toBe(spacedPath);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it.each(['a&&b', 'a|b', 'a;b', 'a`b', 'a$(id)b'])(

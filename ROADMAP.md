@@ -531,7 +531,8 @@ Tracked work that blocks nothing and is deliberately not scheduled.
 | ---- | ------------------------------------------------------------ | ------ |
 | T7.1 | Investigate WMI-ordinal to Electron `Display.id` correlation | todo   |
 | T7.2 | Diagnose intermittent `src/process/` test failure            | todo   |
-| T7.3 | Live-verify `startDev()`/`startProduction()` against the example | todo   |
+| T7.3 | Live-verify `startDev()`/`startProduction()` against the example | done   |
+| T7.4 | Soak fuzzer: viewport sizing and single-window targeting        | todo   |
 
 ### T7.1 — Investigate WMI-ordinal to Electron `Display.id` correlation
 
@@ -550,6 +551,20 @@ Caught while verifying T4.4 (unrelated to it — soak touches none of `src/proce
 
 ### T7.3 — Live-verify `startDev()`/`startProduction()` against the example
 
-T5.3 is unit-tested (mocked spawn/Electron resolution) and independently reviewed twice, but never actually run end-to-end — spawning a real `electron` process via `startDev()` against `examples/basic-kiosk/`. A real Electron launch during this work coincided with the host machine crashing (concurrent background build/review jobs already under memory pressure); the user chose to defer rather than risk repeating it. Not necessarily `startDev()`'s fault — likely just resource contention — but unproven either way.
+T5.3 was unit-tested (mocked spawn/Electron resolution) and independently reviewed twice, but never actually run end-to-end. Done in isolation (nothing else running) after the earlier crash: **both work**, but `startProduction()` initially failed hard — a real, confirmed, blocking bug neither review pass caught.
 
-**Verify:** with nothing else heavy running, call `startDev()` for real against `examples/basic-kiosk/` (entry `dist/main.js`), confirm a real window opens and closes cleanly via `handle.stop()`, then do the same for `startProduction()` against a real `build()` output. Do this alone, not alongside other memory-heavy work.
+`startProduction()` threw `ProcessError: command "...\Basic Kiosk Example.exe" contains whitespace ...` — `spawnManaged`'s own I2 safety guard (`assertSafeCommand` in `src/process/spawn.ts`) rejected the built executable's own path, because electron-builder's default `<productName>.exe` naming contains a space and the guard's original whitespace check made no exception for a real, existing file. The guard's own doc comment inadvertently proved the bug: it cited `C:\Program Files\node\node.exe` as an example of "a real path that must remain usable" while justifying excluding backslash/colon — that exact example path contains a space and would have been rejected by the guard's own code.
+
+**Fixed**: `assertSafeCommand` now only rejects whitespace when the literal path does *not* exist as a real file on disk (`existsSync`); genuine shell metacharacters are still always rejected unconditionally. A new regression test copies a real executable to a path with a space and confirms it's now accepted, alongside the existing test proving `"node -e 1"` (a real mashed-together mistake, not a real file) is still correctly rejected. Re-verified live after the fix: `startProduction()` launches the real built `.exe` and `handle.stop()` cleanly terminates it, confirmed via Task Manager (no orphaned process). `startDev()` worked on the first attempt.
+
+The soak fuzzer (T4.4) was also live-verified in this pass: real synthetic actions were generated and dispatched via `executeJavaScript`, and a real report with real recorded actions was produced. See T7.4 for two lower-severity gaps found during that check.
+
+### T7.4 — Soak fuzzer: viewport sizing and single-window targeting
+
+Found live-testing T4.4 against a real 800×600 window: the report's recorded actions included coordinates like `(1694, 921)`, well outside the actual window. `ActionGenerator` (`src/plugins/soak/generator.ts`) defaults to a hardcoded 1920×1080 viewport unless the caller overrides `viewportWidth`/`viewportHeight` — but `plugin.ts` never wires the real target window's actual bounds through, so every window smaller (or larger, or a different aspect ratio) than 1920×1080 gets synthetic clicks aimed partly outside its own content, landing on `document.body` via `buildActionScript`'s fallback instead of varied real elements.
+
+Separately, `executor.ts`'s `findTargetWindows`/`executeFuzzStep` always fuzzes only `targets[0]` — if `targetWindowIds` names several windows (or none, and several exist), only the first ever receives synthetic input; the others are never exercised.
+
+Neither is a safety or correctness bug — the fuzzer runs, produces a real report, and never crashes because of this — but both reduce how much of a real multi-window/non-1920×1080 kiosk install (exactly this project's actual target shape) actually gets fuzzed.
+
+**Verify:** query each target window's real `getContentBounds()` and pass it into the generator (per-window if bounds differ), and rotate `executeFuzzStep` across all resolved targets rather than only the first. Re-run the live check from T7.3 against a non-default window size and confirm generated coordinates stay within the real bounds, and that a multi-window config exercises more than one window.
