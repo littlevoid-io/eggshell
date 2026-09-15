@@ -58,7 +58,7 @@
 
 import type { BrowserWindow, IpcMain, Screen, WebContents } from 'electron';
 
-import { LayoutError } from '../errors.js';
+import { LayoutError, describeError } from '../errors.js';
 import type { Clock } from '../clock.js';
 import { noopLogger } from '../logging/logger.js';
 import type { Logger } from '../logging/logger.js';
@@ -610,10 +610,4 @@ function registerShutdown(
   });
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

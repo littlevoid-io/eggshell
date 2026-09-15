@@ -98,3 +98,12 @@ export class ConfigError extends EggshellError {
 export function isEggshellError(value: unknown): value is EggshellError {
   return value instanceof EggshellError && typeof value.code === 'string';
 }
+
+/** Extracts the error message if the value is an Error, otherwise converts to string. */
+export function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** Discriminated union for operations that succeed with a value or fail with an error. */
+export type Outcome<T> = { ok: true; value: T } | { ok: false; error: unknown };
+

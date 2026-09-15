@@ -146,6 +146,7 @@ import { execFile } from 'node:child_process';
 import type { Clock } from '../clock.js';
 import { noopLogger, type Logger } from '../logging/logger.js';
 import type { ManagedProcess, ProcessExit } from './types.js';
+import { describeError } from '../errors.js';
 
 const DEFAULT_SIGNAL: NodeJS.Signals = 'SIGTERM';
 
@@ -239,9 +240,6 @@ export interface ShutdownOptions {
   readonly taskkill?: TaskkillInvoker;
 }
 
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 type ExitOutcome = { readonly ok: true; readonly value: ProcessExit } | { readonly ok: false };
 

@@ -96,12 +96,13 @@
 import type { Clock, TimerHandle } from '../clock.js';
 import type { Logger } from '../logging/logger.js';
 import { noopLogger } from '../logging/logger.js';
-import { ProcessError } from '../errors.js';
+import { ProcessError, describeError, type Outcome } from '../errors.js';
 import type { ProcessConfig } from '../config/types.js';
 import { assertPortsFree } from './port.js';
 import { spawnManaged, type SpawnManagedOptions } from './spawn.js';
 import { waitForReadiness } from './readiness.js';
 import type { ManagedProcess, ProcessExit } from './types.js';
+import { computeBackoffMs } from './backoff.js';
 
 export type SupervisorPhase = 'dev' | 'production';
 
@@ -410,7 +411,7 @@ function cancelRestartTimer(ctx: SupervisorContext, record: ProcessRecord): void
   }
 }
 
-type ExitOutcome = { ok: true; value: ProcessExit } | { ok: false; error: unknown };
+type ExitOutcome = Outcome<ProcessExit>;
 
 async function awaitExit(handle: ManagedProcess): Promise<ExitOutcome> {
   try {
@@ -473,11 +474,6 @@ function handleExit(ctx: SupervisorContext, record: ProcessRecord, crashed: bool
   scheduleRestart(ctx, record);
 }
 
-function computeBackoffMs(restart: ProcessConfig['restart'], attempt: number): number {
-  const grown = restart.backoffMs * restart.backoffMultiplier ** (attempt - 1);
-  return Math.min(grown, restart.maxBackoffMs);
-}
-
 /** Schedules the next restart attempt, or gives up permanently once `maxRestarts` is exhausted. */
 function scheduleRestart(ctx: SupervisorContext, record: ProcessRecord): void {
   const restart = record.config.restart;
@@ -501,11 +497,11 @@ function scheduleRestart(ctx: SupervisorContext, record: ProcessRecord): void {
   }, delayMs);
 }
 
-type StartOutcome = { ok: true; handle: ManagedProcess } | { ok: false; error: unknown };
+type StartOutcome = Outcome<ManagedProcess>;
 
 async function tryStart(ctx: SupervisorContext, record: ProcessRecord): Promise<StartOutcome> {
   try {
-    return { ok: true, handle: await performStartAttempt(ctx, record) };
+    return { ok: true, value: await performStartAttempt(ctx, record) };
   } catch (error) {
     return { ok: false, error };
   }
@@ -539,7 +535,7 @@ async function runRestartAttempt(ctx: SupervisorContext, record: ProcessRecord):
     scheduleRestart(ctx, record);
     return;
   }
-  becomeReady(ctx, record, attempt.handle);
+  becomeReady(ctx, record, attempt.value);
 }
 
 // ---------------------------------------------------------------------------
@@ -560,10 +556,3 @@ function disposeSupervisor(ctx: SupervisorContext): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

@@ -158,6 +158,8 @@ import type { Event, RenderProcessGoneDetails, WebContents } from 'electron';
 import type { Clock, TimerHandle } from '../clock.js';
 import type { Logger } from '../logging/logger.js';
 import { noopLogger } from '../logging/logger.js';
+import type { Outcome } from '../errors.js';
+import { computeBackoffMs } from '../process/backoff.js';
 
 export type WatchdogWindowState =
   'healthy' | 'unresponsive' | 'scheduled' | 'reloading' | 'suspended' | 'failed';
@@ -491,11 +493,6 @@ function beginHandlingFailure(ctx: WatchdogContext, windowId: string, reason: st
   scheduleAttempt(ctx, record);
 }
 
-function computeBackoffMs(ctx: WatchdogContext, attempt: number): number {
-  const grown = ctx.backoffMs * ctx.backoffMultiplier ** (attempt - 1);
-  return Math.min(grown, ctx.maxBackoffMs);
-}
-
 function scheduleAttempt(ctx: WatchdogContext, record: WindowRecord): void {
   const delayMs = computeBackoffMs(ctx, record.attempts + 1);
   record.state = 'scheduled';
@@ -541,7 +538,7 @@ function giveUpWindow(ctx: WatchdogContext, record: WindowRecord): void {
   });
 }
 
-type CallOutcome = { readonly ok: true } | { readonly ok: false; readonly error: unknown };
+type CallOutcome = Outcome<void>;
 
 async function tryReload(
   reload: WatchdogOptions['reload'],
@@ -550,7 +547,7 @@ async function tryReload(
 ): Promise<CallOutcome> {
   try {
     await reload(windowId, reason);
-    return { ok: true };
+    return { ok: true, value: undefined };
   } catch (error) {
     return { ok: false, error };
   }

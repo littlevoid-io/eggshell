@@ -68,6 +68,7 @@
 import type { Clock, TimerHandle } from '../clock.js';
 import type { Logger, LogFields } from '../logging/logger.js';
 import { noopLogger } from '../logging/logger.js';
+import { describeError, type Outcome } from '../errors.js';
 import { topologySignature } from './signature.js';
 import type { DisplaySnapshot } from './types.js';
 
@@ -517,8 +518,7 @@ function cancelVerifyTimer(ctx: SupervisorContext): void {
 // Safe call helpers
 // ---------------------------------------------------------------------------
 
-type CallOutcome<T> =
-  { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: unknown };
+type CallOutcome<T> = Outcome<T>;
 
 /**
  * Runs `fn`, catching both a synchronous throw and a rejected promise. This
@@ -549,6 +549,3 @@ function attemptFields(
   };
 }
 
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
