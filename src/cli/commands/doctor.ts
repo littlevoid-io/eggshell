@@ -6,6 +6,7 @@ import { createWindowsTouchProbe } from '../../layout/probes/windows-touch.js';
 import { resolveRoots } from '../../paths/roots.js';
 import { isPortFree } from '../../process/port.js';
 import {
+  checkAppId,
   checkOverrideFile,
   checkPorts,
   checkWindowUrls,
@@ -34,6 +35,7 @@ async function runChecks(app: LoadedApp): Promise<CheckResult[]> {
     timeoutMs: app.config.display.touchProbe.timeoutMs,
   });
   return [
+    checkAppId(app.config.appId),
     checkElectron(electronBinary(), electronVersion()),
     checkUserDataWritable(app.userData),
     checkOverrideFile(resolveOverridePath(app.config, roots)),

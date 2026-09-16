@@ -109,7 +109,7 @@ function chooseStartPage(appDir: string, productName: string): string {
 export async function runInit(flags: InitFlags): Promise<number> {
   const appDir = path.resolve(flags.projectRoot ?? process.cwd());
   const slug = slugOf(appDir);
-  const appId = flags.appId ?? `com.example.${slug}`;
+  const appId = flags.appId ?? `local.${slug}`;
   const productName = flags.productName ?? path.basename(appDir);
   fs.mkdirSync(appDir, { recursive: true });
   const url = chooseStartPage(appDir, productName);

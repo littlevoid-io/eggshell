@@ -2,6 +2,15 @@ import fs from 'node:fs';
 import type { ShellConfig } from '../../config/types.js';
 import { fail, ok, warn, type CheckResult } from './types.js';
 
+const PLACEHOLDER_APP_ID = /^(local|com\.example)\./;
+
+/** The app id names the user-data folder and the packaged app; a placeholder must not ship. */
+export function checkAppId(appId: string): CheckResult {
+  return PLACEHOLDER_APP_ID.test(appId)
+    ? warn('app id', `"${appId}" is a placeholder; set appId to "<org>.<app>" before shipping`)
+    : ok('app id', appId);
+}
+
 export function checkOverrideFile(overridePath: string): CheckResult {
   if (!fs.existsSync(overridePath)) return ok('deployment override', `none at ${overridePath}`);
   try {

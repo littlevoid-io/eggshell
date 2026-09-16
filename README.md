@@ -20,7 +20,7 @@ eggshell init            # writes eggshell.config.ts, package scripts, .gitignor
 npm run dev
 ```
 
-`init` records `@littlevoid/eggshell` as a normal semver dev dependency. Do not run `npm install` in the app repo before it is published. Rebuilding the checkout (`npm run build`) is picked up by the link immediately.
+`init` derives `appId` (`local.<folder>`, replace it with e.g. `littlevoid.<name>`; any two-plus dotted lowercase segments work) and `productName` from the folder name unless `--app-id` / `--product-name` are given, and records `@littlevoid/eggshell` as a dev dependency. Do not run `npm install` in the app repo before it is published. Rebuilding the checkout (`npm run build`) is picked up by the link immediately.
 
 `eggshell.config.ts`:
 

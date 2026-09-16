@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateConfig } from '../../config/validate.js';
-import { checkPorts, checkWindowUrls, expectedPorts } from './checks-config.js';
+import { checkAppId, checkPorts, checkWindowUrls, expectedPorts } from './checks-config.js';
 
 const config = validateConfig({
   appId: 'com.example.doctor',
@@ -21,6 +21,12 @@ const config = validateConfig({
 });
 
 describe('doctor config checks', () => {
+  it('warns on placeholder app ids', () => {
+    expect(checkAppId('local.les-lab-logo').status).toBe('warn');
+    expect(checkAppId('com.example.demo').status).toBe('warn');
+    expect(checkAppId('littlevoid.les-lab-logo').status).toBe('ok');
+  });
+
   it('collects readiness, requirePortsFree and dashboard ports once each, sorted', () => {
     expect(expectedPorts(config)).toEqual([3001, 3002, 3005]);
   });
