@@ -1,26 +1,7 @@
-export {
-  boundsSchema,
-  displayTargetSchema,
-  windowConfigSchema,
-  processConfigSchema,
-  displayPolicySchema,
-  permissionPolicySchema,
-  loggingConfigSchema,
-  shellConfigSchema,
-} from './schema.js';
-
-export type {
-  Bounds,
-  DisplayTarget,
-  WindowConfig,
-  ProcessConfig,
-  DisplayPolicy,
-  PermissionPolicy,
-  LoggingConfig,
-  ShellConfig,
-} from './types.js';
-
+export * from './schema/index.js';
+export type * from './types.js';
+export { defineConfig } from './factory.js';
+export type { ConfigContext, ConfigFactory, ConfigInput } from './factory.js';
 export { validateConfig, formatIssuePath } from './validate.js';
-
 export { DEFAULT_OVERRIDE_FILENAME, resolveOverridePath, loadShellConfig } from './overrides.js';
 export type { LoadShellConfigOptions } from './overrides.js';

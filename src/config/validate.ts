@@ -8,7 +8,7 @@
 import type { z } from 'zod';
 
 import { ConfigError, type ConfigIssue } from '../errors.js';
-import { shellConfigSchema } from './schema.js';
+import { shellConfigSchema } from './schema/index.js';
 import type { ShellConfig } from './types.js';
 
 /**

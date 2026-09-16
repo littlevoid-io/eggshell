@@ -15,9 +15,8 @@ describe('validateConfig — success', () => {
   it('returns a fully-parsed config with schema defaults applied for a valid minimal config', () => {
     const parsed = validateConfig(minimalConfig());
     expect(parsed.processes).toEqual([]);
-    expect(parsed.permissions).toEqual({ default: 'deny', allow: [] });
-    expect(parsed.logging).toEqual({ level: 'info' });
-    expect(parsed.plugins).toEqual({});
+    expect(parsed.browserPermissions.allow).toEqual(['media', 'camera', 'microphone']);
+    expect(parsed.logging.level).toBe('info');
     expect(parsed.windows[0]).toMatchObject({
       kiosk: true,
       fullscreen: false,

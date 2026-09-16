@@ -16,15 +16,24 @@ export {
   DEFAULT_OVERRIDE_FILENAME,
   loadShellConfig,
 } from './config/index.js';
+export { defineConfig } from './config/index.js';
 export type {
   Bounds,
   DisplayTarget,
   WindowConfig,
   ProcessConfig,
   DisplayPolicy,
-  PermissionPolicy,
   LoggingConfig,
+  BrowserPermissions,
+  ChromiumFlags,
+  Keybindings,
+  Keybinding,
+  CursorConfig,
+  ChromeExtensions,
   ShellConfig,
+  ConfigContext,
+  ConfigFactory,
+  ConfigInput,
   LoadShellConfigOptions,
 } from './config/index.js';
 

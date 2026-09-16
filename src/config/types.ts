@@ -1,26 +1,29 @@
-/**
- * Types inferred from `./schema.ts` (T1.3). These are `z.infer`s, never a
- * hand-maintained parallel copy — a second copy is exactly the kind of thing
- * that drifts silently out of sync with the schema that actually validates.
- */
-
 import type { z } from 'zod';
 import type {
   boundsSchema,
-  displayTargetSchema,
-  windowConfigSchema,
-  processConfigSchema,
+  browserPermissionsSchema,
+  chromeExtensionsSchema,
+  chromiumFlagsSchema,
+  cursorSchema,
   displayPolicySchema,
-  permissionPolicySchema,
+  displayTargetSchema,
+  keybindingsSchema,
   loggingConfigSchema,
+  processConfigSchema,
   shellConfigSchema,
-} from './schema.js';
+  windowConfigSchema,
+} from './schema/index.js';
 
 export type Bounds = z.infer<typeof boundsSchema>;
 export type DisplayTarget = z.infer<typeof displayTargetSchema>;
 export type WindowConfig = z.infer<typeof windowConfigSchema>;
 export type ProcessConfig = z.infer<typeof processConfigSchema>;
 export type DisplayPolicy = z.infer<typeof displayPolicySchema>;
-export type PermissionPolicy = z.infer<typeof permissionPolicySchema>;
 export type LoggingConfig = z.infer<typeof loggingConfigSchema>;
+export type BrowserPermissions = z.infer<typeof browserPermissionsSchema>;
+export type ChromiumFlags = z.infer<typeof chromiumFlagsSchema>;
+export type Keybindings = z.infer<typeof keybindingsSchema>;
+export type Keybinding = Keybindings['bindings'][number];
+export type CursorConfig = z.infer<typeof cursorSchema>;
+export type ChromeExtensions = z.infer<typeof chromeExtensionsSchema>;
 export type ShellConfig = z.infer<typeof shellConfigSchema>;

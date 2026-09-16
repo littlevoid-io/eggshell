@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shellConfigSchema } from './schema.js';
+import { shellConfigSchema } from './schema/index.js';
 import type { ShellConfig } from './types.js';
 
 /**
@@ -109,15 +109,13 @@ function buildMaximalConfig() {
       },
       touchProbe: { enabled: true, timeoutMs: 3000 },
     },
-    permissions: {
-      default: 'deny',
-      allow: [{ origin: 'http://localhost:3000', permissions: ['media', 'notifications'] }],
-    },
-    logging: { level: 'debug' },
-    plugins: {
-      overlay: { enabled: true, opacity: 0.5, tags: ['a', 'b'] },
-      clock: { format: '24h' },
-    },
+    icon: 'public/icon.png',
+    logging: { level: 'debug', file: { enabled: true, directory: 'logs', maxSize: '5m', maxFiles: 3 } },
+    browserPermissions: { enabled: true, allow: ['media'] },
+    chromiumFlags: { enabled: true, additional: ['--disable-gpu'], remoteDebuggingPort: 9333 },
+    keybindings: { enabled: true, bindings: [{ key: 'ctrl+q', command: 'app.quit' }] },
+    cursor: { visible: false },
+    chromeExtensions: { enabled: true, paths: ['extensions/react-devtools'] },
     deploymentOverridePath: 'C:/ProgramData/eggshell/eggshell.deployment.json',
   };
 }
@@ -165,9 +163,19 @@ describe('shellConfigSchema — minimal config and defaults', () => {
   it('applies schema-declared defaults', () => {
     const parsed: ShellConfig = shellConfigSchema.parse(minimalConfig());
     expect(parsed.processes).toEqual([]);
-    expect(parsed.permissions).toEqual({ default: 'deny', allow: [] });
-    expect(parsed.logging).toEqual({ level: 'info' });
-    expect(parsed.plugins).toEqual({});
+    expect(parsed.logging).toEqual({
+      level: 'info',
+      file: { enabled: true, directory: 'logs', maxSize: '10m', maxFiles: 5 },
+    });
+    expect(parsed.browserPermissions).toEqual({
+      enabled: true,
+      allow: ['media', 'camera', 'microphone'],
+    });
+    expect(parsed.chromiumFlags).toEqual({ enabled: true, additional: [], remoteDebuggingPort: 9223 });
+    expect(parsed.keybindings.enabled).toBe(true);
+    expect(parsed.keybindings.bindings).toHaveLength(5);
+    expect(parsed.cursor).toEqual({ visible: 'auto' });
+    expect(parsed.chromeExtensions).toEqual({ enabled: false, paths: [] });
     expect(parsed.display.supervisor).toEqual({
       debounceMs: 300,
       maxAttemptsPerTopology: 5,
@@ -360,14 +368,28 @@ describe('shellConfigSchema — DisplayTarget', () => {
   });
 });
 
-describe('shellConfigSchema — permissions', () => {
-  it('rejects a permissions.default other than "deny"', () => {
+describe('shellConfigSchema — feature sections', () => {
+  it('rejects an unknown keybinding command', () => {
     const config = {
       ...minimalConfig(),
-      permissions: { default: 'allow', allow: [] },
+      keybindings: { bindings: [{ key: 'ctrl+x', command: 'app.explode' }] },
     };
     const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
+  });
+
+  it('lets a consumer turn a default-on section off', () => {
+    const parsed = shellConfigSchema.parse({ ...minimalConfig(), keybindings: { enabled: false } });
+    expect(parsed.keybindings.enabled).toBe(false);
+    expect(parsed.keybindings.bindings).toHaveLength(5);
+  });
+
+  it('defaults a window target to primary', () => {
+    const parsed = shellConfigSchema.parse({
+      ...minimalConfig(),
+      windows: [{ id: 'main', url: 'http://localhost:3000' }],
+    });
+    expect(parsed.windows[0]?.target).toEqual({ kind: 'primary' });
   });
 });
 
