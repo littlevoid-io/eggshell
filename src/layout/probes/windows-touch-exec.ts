@@ -105,7 +105,9 @@ function handleExecFailure(
     return [];
   }
   const error = raced.error instanceof Error ? raced.error.message : String(raced.error);
-  logger.warn('windows touch probe: probe command failed; treating as no touch displays', { error });
+  logger.warn('windows touch probe: probe command failed; treating as no touch displays', {
+    error,
+  });
   return [];
 }
 

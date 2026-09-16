@@ -2,7 +2,11 @@ import { systemClock } from '../clock.js';
 import type { ResolvedApp } from '../config/resolved.js';
 import { createChildLogger, type Logger } from '../logging/logger.js';
 import { shutdownAll } from '../process/shutdown.js';
-import { createProcessSupervisor, type ProcessStatus } from '../process/supervisor.js';
+import {
+  createProcessSupervisor,
+  type ProcessStatus,
+  type ProcessSupervisor,
+} from '../process/supervisor.js';
 
 export interface ProductionProcesses {
   statuses(): readonly ProcessStatus[];
@@ -28,12 +32,11 @@ export async function startProductionProcesses(
     logger: createChildLogger(logger, 'process'),
   });
   await supervisor.start();
-  return {
-    statuses: () => supervisor.getStatuses(),
-    stop: async () => {
-      supervisor.dispose();
-      const targets = [...supervisor.getHandles().values()].map(handle => ({ handle }));
-      await shutdownAll(targets, { graceMs: 5000, clock: systemClock, logger });
-    },
-  };
+  return { statuses: () => supervisor.getStatuses(), stop: () => stopAll(supervisor, logger) };
+}
+
+async function stopAll(supervisor: ProcessSupervisor, logger: Logger): Promise<void> {
+  supervisor.dispose();
+  const targets = [...supervisor.getHandles().values()].map(handle => ({ handle }));
+  await shutdownAll(targets, { graceMs: 5000, clock: systemClock, logger });
 }

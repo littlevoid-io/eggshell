@@ -11,24 +11,26 @@ export interface ShellLoggerOptions {
   readonly extraStreams?: readonly DestinationStream[];
 }
 
+async function fileStreams(resolved: ResolvedApp): Promise<DestinationStream[]> {
+  const fileConfig = resolved.config.logging.file;
+  if (!fileConfig.enabled) return [];
+  const stream = await createRollingFileStream({
+    directory: path.resolve(resolved.userData, fileConfig.directory),
+    maxSize: fileConfig.maxSize,
+    maxFiles: fileConfig.maxFiles,
+  });
+  return [stream];
+}
+
 export async function createShellLogger(
   resolved: ResolvedApp,
   options: ShellLoggerOptions
 ): Promise<Logger> {
-  const streams: DestinationStream[] = [...(options.extraStreams ?? [])];
-  if (options.stdout) streams.unshift(process.stdout);
-  const fileConfig = resolved.config.logging.file;
-  if (fileConfig.enabled) {
-    const fileStream = await createRollingFileStream({
-      directory: path.resolve(resolved.userData, fileConfig.directory),
-      maxSize: fileConfig.maxSize,
-      maxFiles: fileConfig.maxFiles,
-    });
-    streams.push(fileStream);
-  }
-  const pinoLogger = createPinoLogger({
-    level: resolved.config.logging.level,
-    streams,
-  });
+  const streams: DestinationStream[] = [
+    ...(options.stdout ? [process.stdout] : []),
+    ...(options.extraStreams ?? []),
+    ...(await fileStreams(resolved)),
+  ];
+  const pinoLogger = createPinoLogger({ level: resolved.config.logging.level, streams });
   return createChildLogger(pinoLogger, 'shell');
 }

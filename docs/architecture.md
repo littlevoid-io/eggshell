@@ -106,7 +106,7 @@ Size rules apply everywhere: `max-lines` 150, `max-lines-per-function` 20, `max-
 
 ## Logging
 
-One pino stream fans out to three sinks: terminal (`pino-pretty`, colored per module), rotating file (`pino-roll`), dashboard SSE.
+One pino stream fans out to three sinks: stdout as JSON lines (the CLI colors them per scope), rotating file (`pino-roll`), dashboard SSE.
 
 Renderer output reaches the same stream two ways, both always on:
 
@@ -117,24 +117,26 @@ Renderer output reaches the same stream two ways, both always on:
 
 Hand-rolled code is limited to the layout resolver, topology signature, and the two supervisors' state transitions. Everything else uses a library.
 
-| Problem            | Library                            |
-| ------------------ | ---------------------------------- |
-| argv               | `meow`                             |
-| spawn              | `execa`                            |
-| tree kill          | `fkill`                            |
-| wait for port      | `wait-on`                          |
-| port free check    | `detect-port`                      |
-| retry with backoff | `p-retry`                          |
-| timeout            | `p-timeout`                        |
-| debounce, throttle | `p-debounce`, `p-throttle`         |
-| logging            | `pino`, `pino-roll`, `pino-pretty` |
-| terminal color     | `chalk`                            |
-| http               | `express`                          |
-| deep merge         | `deepmerge` (arrays replace)       |
-| TS config load     | `tsx`                              |
-| package.json edit  | `read-pkg`, `write-pkg`            |
-| QR                 | `qrcode`                           |
-| validation         | `zod`                              |
+| Problem                | Library                                                        |
+| ---------------------- | -------------------------------------------------------------- |
+| argv                   | `meow`                                                         |
+| spawn                  | `execa`                                                        |
+| tree kill              | `fkill`                                                        |
+| wait for port / http   | `wait-on`                                                      |
+| port free check        | `detect-port`                                                  |
+| timeout                | `p-timeout`                                                    |
+| logging                | `pino`, `pino-roll`                                            |
+| terminal color         | `chalk`                                                        |
+| http                   | `express`                                                      |
+| deep merge             | `deepmerge` (arrays replace)                                   |
+| TS config load         | `tsx`                                                          |
+| package.json edit      | `read-pkg`, `write-pkg`                                        |
+| per-app data directory | `env-paths`                                                    |
+| QR                     | `qrcode`                                                       |
+| validation             | `zod`                                                          |
+| packaging              | `electron-builder`, `esbuild` (bundles the main), `tinyglobby` |
+
+Restart backoff and the topology debounce stay hand-rolled: both are state machines with fake-clock tests, and `p-retry` / `p-debounce` take no injected clock.
 
 ## Dashboard UI
 

@@ -34,28 +34,32 @@ function createOverlay(parent: BrowserWindow): BrowserWindow {
 }
 
 /** A click-through window over the main window that fades to black on demand. */
+function fadeIn(overlay: BrowserWindow): void {
+  overlay.show();
+  void overlay.webContents.executeJavaScript('window.show()').catch(() => undefined);
+}
+
+function openAndFadeIn(main: BrowserWindow): BrowserWindow {
+  const overlay = createOverlay(main);
+  overlay.webContents.once('did-finish-load', () => fadeIn(overlay));
+  return overlay;
+}
+
 export function createBlackout(getMainWindow: () => BrowserWindow | undefined): Blackout {
   let overlay: BrowserWindow | undefined;
-  const run = (script: string) =>
-    overlay?.webContents.executeJavaScript(script).catch(() => undefined);
   return {
     show() {
       const main = getMainWindow();
       if (!main) return;
       if (!overlay || overlay.isDestroyed()) {
-        overlay = createOverlay(main);
-        overlay.webContents.once('did-finish-load', () => {
-          overlay?.show();
-          void run('window.show()');
-        });
+        overlay = openAndFadeIn(main);
         return;
       }
       overlay.setBounds(main.getBounds());
-      overlay.show();
-      void run('window.show()');
+      fadeIn(overlay);
     },
     hide() {
-      void run('window.hide()');
+      void overlay?.webContents.executeJavaScript('window.hide()').catch(() => undefined);
     },
   };
 }

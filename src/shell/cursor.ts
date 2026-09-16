@@ -35,26 +35,31 @@ async function applyTo(
 }
 
 /** Hides the cursor by injecting CSS; re-applies after every page load. */
+interface CursorState {
+  readonly keys: Map<BrowserWindow, string>;
+  readonly windows: Set<BrowserWindow>;
+  visible: boolean;
+}
+
+function attachWindow(state: CursorState, window: BrowserWindow): void {
+  state.windows.add(window);
+  window.webContents.on('did-finish-load', () => {
+    state.keys.delete(window);
+    void applyTo(window, state.keys, state.visible);
+  });
+  window.on('closed', () => state.windows.delete(window));
+}
+
 export function createCursorController(initiallyVisible: boolean): CursorController {
-  const keys = new Map<BrowserWindow, string>();
-  const windows = new Set<BrowserWindow>();
-  let visible = initiallyVisible;
-  const applyAll = () => windows.forEach(window => void applyTo(window, keys, visible));
+  const state: CursorState = { keys: new Map(), windows: new Set(), visible: initiallyVisible };
   return {
     get visible() {
-      return visible;
+      return state.visible;
     },
-    attach(window) {
-      windows.add(window);
-      window.webContents.on('did-finish-load', () => {
-        keys.delete(window);
-        void applyTo(window, keys, visible);
-      });
-      window.on('closed', () => windows.delete(window));
-    },
+    attach: window => attachWindow(state, window),
     toggle() {
-      visible = !visible;
-      applyAll();
+      state.visible = !state.visible;
+      state.windows.forEach(window => void applyTo(window, state.keys, state.visible));
     },
   };
 }

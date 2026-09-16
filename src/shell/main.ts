@@ -123,24 +123,25 @@ function startServices(options: ServiceOptions): ShellServices {
   return { ...options, dashboard, soak: holder.runner };
 }
 
+function openKiosk(
+  windows: readonly ManagedWindow[],
+  logger: Logger
+): Pick<ServiceOptions, 'overlays' | 'router' | 'topology'> {
+  const quit = () => app.quit();
+  const router = createShellRouter(ipcMain, windows, quit, logger);
+  const overlays = createOverlays(resolved, windows, router, logger, paths);
+  attachFeatures(resolved, windows, overlays, quit, logger);
+  const topology = watchTopology({ resolved, screen, windows, logger });
+  return { overlays, router, topology };
+}
+
 async function onReady(): Promise<void> {
   const { logBroadcast, logger } = await setupLogger(resolved, config.dashboard.logBufferSize);
   await initShell(resolved, logger, args.parentPid);
   const processes = await startProductionProcesses(resolved, app.isPackaged, logger);
   const windows = initWindows(resolved, logger);
-  const router = createShellRouter(ipcMain, windows, () => app.quit(), logger);
-  const overlays = createOverlays(resolved, windows, router, logger, paths);
-  attachFeatures(resolved, windows, overlays, () => app.quit(), logger);
-  const topology = watchTopology({ resolved, screen, windows, logger });
-  const services = startServices({
-    windows,
-    overlays,
-    router,
-    topology,
-    processes,
-    logs: logBroadcast,
-    logger,
-  });
+  const kiosk = openKiosk(windows, logger);
+  const services = startServices({ ...kiosk, windows, processes, logs: logBroadcast, logger });
   registerShutdown(services);
   logger.info('Windows opened', { count: windows.length, isDev: resolved.isDev });
 }

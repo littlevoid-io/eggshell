@@ -1,5 +1,10 @@
 import path from 'node:path';
-import { BrowserWindow, type BrowserWindowConstructorOptions, type Screen } from 'electron';
+import {
+  BrowserWindow,
+  type BrowserWindowConstructorOptions,
+  type Screen,
+  type WebPreferences,
+} from 'electron';
 import type { WindowConfig } from '../../config/types.js';
 import type { ResolvedApp } from '../../config/resolved.js';
 import { resolveLayout } from '../../layout/resolve.js';
@@ -21,6 +26,17 @@ export interface CreateWindowsOptions {
   readonly logger: Logger;
 }
 
+function webPreferences(config: WindowConfig, preloadPath: string): WebPreferences {
+  return {
+    preload: preloadPath,
+    sandbox: true,
+    contextIsolation: true,
+    nodeIntegration: false,
+    backgroundThrottling: false,
+    zoomFactor: config.zoomFactor,
+  };
+}
+
 function windowOptions(
   placement: WindowPlacement,
   config: WindowConfig,
@@ -36,14 +52,7 @@ function windowOptions(
     frame: placement.mode === 'windowed',
     ...(config.backgroundColor ? { backgroundColor: config.backgroundColor } : {}),
     ...(icon ? { icon: path.resolve(resolved.appDir, icon) } : {}),
-    webPreferences: {
-      preload: preloadPath,
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-      backgroundThrottling: false,
-      zoomFactor: config.zoomFactor,
-    },
+    webPreferences: webPreferences(config, preloadPath),
   };
 }
 
