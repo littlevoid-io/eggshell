@@ -71,9 +71,9 @@ Status: `ported` (behavior carried over) | `rewritten` (new implementation, same
 | Dashboard `POST /toggle-offline`                                   | `src/shell/dashboard/router.ts`                                                     | rewritten | Overlay toggles                                                             |
 | Dashboard `POST /toggle-companion`                                 | `src/shell/dashboard/router.ts`                                                     | rewritten | Overlay toggles                                                             |
 | Dashboard `POST /restart-app`                                      | `POST /api/restart` (`app.relaunch`)                                                | rewritten | App relaunches                                                              |
-| Dashboard React UI (LogConsole, DisplayLayout, ConfirmationDialog) | Prebuilt UI in `dist/dashboard-ui`                                                  | todo      | UI loads at `http://<host>:<port>/`; confirm dialogs on destructive actions |
+| Dashboard React UI (LogConsole, DisplayLayout, ConfirmationDialog) | Vue 3 + Tailwind workspace `ui/dashboard`, built to `dist/dashboard-ui`             | rewritten | UI loads at `http://<host>:<port>/`; confirm dialogs on destructive actions |
 | `printDashboardQR` to terminal                                     | `src/cli/dashboard-qr.ts`                                                           | ported    | QR printed once dashboard is up; scans to dashboard URL                     |
-| `ExtensionManager` (unpacked Chrome extensions)                    | `chromeExtensions` section                                                          | todo      | Extension listed in `chrome://extensions`                                   |
+| `ExtensionManager` (unpacked Chrome extensions)                    | `chromeExtensions` section, `src/shell/extensions.ts`                               | rewritten | Extension listed in `chrome://extensions`                                   |
 | Vite dev server for dashboard/offline UIs                          | Prebuilt assets                                                                     | dropped   | Nested builds at consumer dev time removed                                  |
 
 ## eggshell-only additions

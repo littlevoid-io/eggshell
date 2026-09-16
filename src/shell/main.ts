@@ -14,6 +14,7 @@ import {
 import { applyBrowserPermissions } from './browser-permissions.js';
 import { applyChromiumFlags } from './chromium-flags.js';
 import { startShellDashboard } from './dashboard-setup.js';
+import { loadChromeExtensions } from './extensions.js';
 import type { IpcRouter } from './ipc.js';
 import { keepDisplayAwake, watchParent } from './lifecycle.js';
 import { createShellLogger } from './logger.js';
@@ -72,10 +73,12 @@ async function setupLogger(resolvedApp: ResolvedApp, logBufferSize: number) {
   return { logBroadcast, logger };
 }
 
-function initShell(resolvedApp: ResolvedApp, parentPid?: number) {
+async function initShell(resolvedApp: ResolvedApp, logger: Logger, parentPid?: number) {
   applyBrowserPermissions(session.defaultSession, resolvedApp.config.browserPermissions);
   keepDisplayAwake();
   if (parentPid !== undefined) watchParent(parentPid, () => app.quit());
+  const { chromeExtensions } = resolvedApp.config;
+  await loadChromeExtensions(session.defaultSession, chromeExtensions, resolvedApp.appDir, logger);
 }
 
 function initWindows(resolvedApp: ResolvedApp, logger: Logger): ManagedWindow[] {
@@ -122,7 +125,7 @@ function startServices(options: ServiceOptions): ShellServices {
 
 async function onReady(): Promise<void> {
   const { logBroadcast, logger } = await setupLogger(resolved, config.dashboard.logBufferSize);
-  initShell(resolved, args.parentPid);
+  await initShell(resolved, logger, args.parentPid);
   const processes = await startProductionProcesses(resolved, app.isPackaged, logger);
   const windows = initWindows(resolved, logger);
   const router = createShellRouter(ipcMain, windows, () => app.quit(), logger);
