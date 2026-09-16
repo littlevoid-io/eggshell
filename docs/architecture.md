@@ -1,74 +1,161 @@
 # Architecture
 
-`eggshell` is an Electron kiosk-launcher you use as a library: call `launch(config)` from your own Electron main file, and it handles window management and process supervision, with plugins available if you need them. It can also build a standalone executable and write a launch manifest alongside it, so a separate provisioning tool can find and start your app on its own.
+eggshell is a CLI that owns the Electron process for kiosk installations. An exhibit repo contains one config file; `eggshell dev|build|start|doctor` does the rest.
 
-## Roots
+## Consumer contract
 
-Eggshell resolves three root paths, always passed in explicitly rather than found by searching the filesystem:
+Files eggshell touches in an exhibit repo:
 
-| Root           | Where it comes from                                                |
-| -------------- | ------------------------------------------------------------------ |
-| `packageRoot`  | figured out automatically from eggshell's own location             |
-| `projectRoot`  | you provide this                                                   |
-| `userDataRoot` | you provide this too, usually Electron's `app.getPath('userData')` |
+| File                 | Written by `eggshell init`                      |
+| -------------------- | ----------------------------------------------- |
+| `eggshell.config.ts` | Created. The only eggshell-specific file.       |
+| `package.json`       | Scripts `dev`, `build`, `start`, `doctor` and `devDependencies.eggshell` added if absent. Existing keys are reported and skipped. |
+| `.gitignore`         | `release/`, `.eggshell/` appended if missing.   |
+
+No consumer Electron main, no preload path, no root resolution. eggshell ships its own main.
+
+## Config
+
+```ts
+// eggshell.config.ts
+export default ({ appDir, isDev }) => ({
+  appId: 'com.example.mural',
+  productName: 'Mural',
+  windows: [{ id: 'main', url: isDev ? 'http://localhost:3000' : 'http://localhost:3001' }],
+});
+```
+
+- Factory input: `{ appDir, isDev, platform }`. Conditionals live in the consumer's code.
+- Factory output: plain JSON data, validated by zod. Errors name the field path.
+- Required: `appId`, `productName`, `windows`. Every other section is optional and off when absent.
+- One optional post-factory layer: a deployment override JSON file at `<userData>/eggshell.deployment.json`. Objects deep-merge, arrays replace, result re-validates.
+- No env vars, no CLI flags feed the config.
+
+Sections map one-to-one onto features:
+
+| Section            | Feature                                                          |
+| ------------------ | ---------------------------------------------------------------- |
+| `windows`          | Placement (`target`, `kiosk`, `bounds`), hardening, icon         |
+| `processes`        | Child servers per phase (`dev`, `production`, `always`), readiness, restart |
+| `display`          | Roles, touch probe, topology supervisor tuning                   |
+| `logging`          | File sink with rotation, level, directory                        |
+| `keybindings`      | Key → command list (quit, toggle cursor/offline/companion)       |
+| `cursor`           | Initial visibility                                               |
+| `chromeExtensions` | Unpacked extension paths, relative to `appDir`                   |
+| `chromiumFlags`    | Chromium command-line switches appended at startup               |
+| `offline`          | Connectivity probe and overlay                                   |
+| `companion`        | QR overlay pointing to a LAN URL                                 |
+| `dashboard`        | HTTP control API, live log stream, static UI                     |
+| `soak`             | Soak test: random UI interaction (monkey testing) for a set duration |
+| `browserPermissions` | Chromium permission requests (`getUserMedia`, notifications, ...) allow-list |
+
+### Defaults
+
+On by default when a feature needs no input and has no external surface. Off when it binds a port, needs a URL, or is a test tool. `enabled: false` turns a default-on section off.
+
+| Section                                              | Default                                                  |
+| ---------------------------------------------------- | -------------------------------------------------------- |
+| `logging`                                            | On. Rotating file in `<userData>/logs`, 10 MB x 5 files. |
+| `keybindings`                                        | On. `ctrl+q` quit, `shift+o` offline, `shift+c` cursor, `shift+?` companion. |
+| `cursor`                                             | Derived: hidden when `kiosk: true`, visible otherwise.   |
+| `offline`                                            | On. Electron `net.isOnline()`, no port.                  |
+| `browserPermissions`                                 | On. Allow `media`, `camera`, `microphone`; deny the rest. |
+| `dashboard`, `companion`, `soak`, `chromeExtensions` | Off.                                                     |
+| `chromiumFlags`                                      | On. Kiosk switches: `force-device-scale-factor=1`, no pinch, no background throttling, GPU rasterization. `remote-debugging-port` in dev only. |
+
+`eggshell doctor` prints the fully resolved config with defaults applied.
 
 ## Layers
 
-Each layer only depends on the ones below it, never the other way around:
-
 ```
-cli / build          electron-builder, manifest, doctor, dev/start
-      |
-shell                Electron: BrowserWindow, session, app lifecycle
-      |
-plugin-api           ShellContext + registries (the only plugin seam)
-      |
-layout   process     pure: resolver, supervisor state machines, spawn, readiness
-      |
-config  paths  errors  logging      pure: zod schema, explicit roots, Logger interface
+cli          argv parsing, config loading (tsx), spawn Electron, terminal output (colors, QR)
+  |
+shell        Electron main: windows, features, IPC, keybindings, dashboard server
+  |
+layout   process     pure: resolver, topology supervisor, spawn, readiness, shutdown
+  |
+config   paths   errors   logging     pure: zod schema, roots, error types, Logger interface
 ```
 
-Plugins (`src/plugins/**`) live outside this stack and depend only on `plugin-api`, `config`, `errors`, and `logging` -- enforced by lint. Two narrow, deliberate exceptions to "no direct Electron access" exist and are lint-exempted by name: `plugins/offline/probe.ts` (`net.isOnline()`, no non-Electron equivalent) and `plugins/soak/**` (a fuzz-testing plugin that needs broad Electron access by design). Everything else, including attaching an overlay view, goes through the `views` capability on `ShellContext` -- see Plugin seam below.
+Arrows point down only. `layout` and `process` never import Electron.
 
-| Layer           | What it's for                                                       |
-| --------------- | ------------------------------------------------------------------- |
-| `config`        | validating config with zod, merging in deployment overrides         |
-| `paths`         | resolving roots, checking paths stay contained                      |
-| `errors`        | a typed error hierarchy that always names a field path              |
-| `logging`       | a simple `Logger` interface, plus basic implementations             |
-| `layout`        | working out window placement, and the state machine that applies it |
-| `process`       | checking ports, spawning processes, readiness checks, restarts      |
-| `plugin-api`    | the `ShellContext` seam that plugins hook into                      |
-| `shell`         | wiring the pure layers up to real Electron APIs                     |
-| `cli` / `build` | thin command-line wrappers over the library's own functions         |
+| Directory      | Purpose                                                          |
+| -------------- | ---------------------------------------------------------------- |
+| `src/config`   | Schema, validation, override merge                               |
+| `src/paths`    | `appDir`, `userData`, `packageRoot`; containment checks          |
+| `src/errors`   | `ConfigError`, `LayoutError`, `ProcessError`, `BuildError`       |
+| `src/logging`  | `Logger` interface, console + file (rotating) implementations    |
+| `src/layout`   | Display snapshot, layout resolution, topology supervisor, touch probe |
+| `src/process`  | Port check, argv spawn, readiness, restart supervisor, tree shutdown |
+| `src/shell`    | Electron main and one subdirectory per config section            |
+| `src/cli`      | `bin.ts` plus one file per command                               |
+
+## Rules
+
+Four rules. Each is one ESLint block in `eslint.config.mjs`, named by the label below.
+
+| Rule           | Statement                                                                              | Check          |
+| -------------- | -------------------------------------------------------------------------------------- | -------------- |
+| `pure-core`    | `src/layout/resolve.ts` and `src/layout/signature.ts` import no `node:*` or `electron` and contain no `await`. Placement is a pure function of inputs. | ESLint zone    |
+| `argv-spawn`   | Child processes go through `execa` with an argv array. `shell:` option, `exec`, `execSync` are banned. | ESLint rule    |
+| `cli-exits`    | `process.exit` only in `src/cli/bin.ts`.                                               | ESLint rule    |
+| `config-data`  | Validated config round-trips through `JSON.stringify` unchanged.                       | One vitest     |
+
+Size rules apply everywhere: `max-lines` 150, `max-lines-per-function` 20, `max-depth` 3.
+
+## Logging
+
+One pino stream fans out to three sinks: terminal (`pino-pretty`, colored per module), rotating file (`pino-roll`), dashboard SSE.
+
+Renderer output reaches the same stream two ways, both always on:
+
+- `webContents` `console-message` events, logged under `renderer:<windowId>`. No app changes needed.
+- `window.eggshell.log.{debug,info,warn,error}(message, fields)` from the preload, for structured logs.
+
+## Libraries
+
+Hand-rolled code is limited to the layout resolver, topology signature, and the two supervisors' state transitions. Everything else uses a library.
+
+| Problem            | Library                              |
+| ------------------ | ------------------------------------ |
+| argv               | `meow`                               |
+| spawn              | `execa`                              |
+| tree kill          | `fkill`                              |
+| wait for port      | `wait-on`                            |
+| port free check    | `detect-port`                        |
+| retry with backoff | `p-retry`                            |
+| timeout            | `p-timeout`                          |
+| debounce, throttle | `p-debounce`, `p-throttle`           |
+| logging            | `pino`, `pino-roll`, `pino-pretty`   |
+| terminal color     | `chalk`                              |
+| http               | `express`                            |
+| deep merge         | `deepmerge` (arrays replace)         |
+| TS config load     | `tsx`                                |
+| package.json edit  | `read-pkg`, `write-pkg`              |
+| QR                 | `qrcode`                             |
+| validation         | `zod`                                |
+
+## Dashboard UI
+
+- npm workspace `ui/dashboard/`: Vue 3, TypeScript, Tailwind 4, Vite.
+- `vite build` emits `dist/dashboard-ui/`; eggshell's `build` script runs it. The dashboard server serves that folder.
+- HMR while developing eggshell: `npm run dev -w ui/dashboard`, Vite proxies `/api` to a running kiosk's dashboard port.
+- Consumers never build it. Offline and companion overlays are single static HTML files.
 
 ## Reliability
 
-A few properties fall out of how things are built:
-
-- Validation errors always name the exact field that's wrong, so a typo in your config gives you a clear message instead of a mysterious failure.
-- Config is plain, JSON-serializable data — there's no way to pass a function into it, and no environment variables or CLI flags feed into it either. The only other input is one optional JSON override file (at `config.deploymentOverridePath`, or `<userDataRoot>/eggshell.deployment.json` by default), meant for a provisioning tool to adjust a deployed machine without rebuilding. It goes through the same validation as regular config.
-- Anything that checks the OS (like probing for a touch-capable display) runs asynchronously with a real timeout, so a slow or hanging OS call can never freeze the app.
-- Child processes are spawned as an argv array, never a shell string, and nothing binds to a non-loopback network interface without an explicit opt-in.
-
-## Plugin seam
-
-```ts
-interface ShellPlugin {
-  id: string;
-  setup(context: ShellContext): void | Promise<void>;
-  teardown?(): void | Promise<void>;
-}
-```
-
-A plugin gets a `ShellContext` with access to windows, a `views` capability for attaching overlay content without touching Electron directly, IPC, commands, status, a logger, the resolved roots, and its own slice of config (`config.plugins[id]`). If a plugin's `setup` throws, that one plugin is marked failed and logged, and everything else keeps running.
+- Layout targets resolve deterministically. An unsatisfiable target degrades once (`fallback`) and logs; it is never retried in a loop.
+- Display-change events are deduplicated by topology signature, debounced, and capped in attempts. Exhaustion stops with an error log.
+- OS probes (touch detection) are async with a timeout and never run inside a display-change handler.
+- Child processes exit as a tree on shutdown (`taskkill /T` on Windows).
+- Nothing binds a non-loopback interface unless the config section says so.
 
 ## Toolchain
 
-| Choice                                                   | Why                                                                                                               |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| ESM only, `nodenext` module resolution                   | Relative imports need explicit `.js` extensions as a result.                                                      |
-| Just `tsc`, no bundler                                   | A library doesn't need one, and per-file output tree-shakes cleanly for consumers.                                |
-| TypeScript pinned to 6.x                                 | typescript-eslint doesn't support TS 7's parser yet, and working lint matters more than a newer compiler for now. |
-| Electron as a peer dependency                            | Your project controls which Electron version you're on.                                                           |
-| electron-builder as an optional peer, loaded dynamically | It's only needed at build time, so it shouldn't bloat a normal install.                                           |
+| Choice                              | Why                                                          |
+| ----------------------------------- | ------------------------------------------------------------ |
+| ESM only, `nodenext`                | Electron main supports ESM; relative imports carry `.js`.    |
+| `tsc` for eggshell, `tsx` for config loading | No bundler. Consumer config is TypeScript without a build step. |
+| TypeScript 6.x                      | typescript-eslint has no TS 7 parser yet.                    |
+| Electron + electron-builder as eggshell dependencies | One download at `npm install eggshell`; binary resolved from eggshell's own package. Apps pin Electron via the eggshell version. `doctor` verifies the binary. |
+| Dashboard UI prebuilt in eggshell   | Consumer never runs a nested build.                          |
