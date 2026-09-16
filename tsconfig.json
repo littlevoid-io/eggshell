@@ -26,5 +26,5 @@
     "types": ["node"]
   },
   // moduleResolution "nodenext" requires explicit .js extensions on all relative imports in source.
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.cts"]
 }

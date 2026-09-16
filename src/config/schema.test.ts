@@ -110,7 +110,10 @@ function buildMaximalConfig() {
       touchProbe: { enabled: true, timeoutMs: 3000 },
     },
     icon: 'public/icon.png',
-    logging: { level: 'debug', file: { enabled: true, directory: 'logs', maxSize: '5m', maxFiles: 3 } },
+    logging: {
+      level: 'debug',
+      file: { enabled: true, directory: 'logs', maxSize: '5m', maxFiles: 3 },
+    },
     browserPermissions: { enabled: true, allow: ['media'] },
     chromiumFlags: { enabled: true, additional: ['--disable-gpu'], remoteDebuggingPort: 9333 },
     keybindings: { enabled: true, bindings: [{ key: 'ctrl+q', command: 'app.quit' }] },
@@ -171,7 +174,11 @@ describe('shellConfigSchema — minimal config and defaults', () => {
       enabled: true,
       allow: ['media', 'camera', 'microphone'],
     });
-    expect(parsed.chromiumFlags).toEqual({ enabled: true, additional: [], remoteDebuggingPort: 9223 });
+    expect(parsed.chromiumFlags).toEqual({
+      enabled: true,
+      additional: [],
+      remoteDebuggingPort: 9223,
+    });
     expect(parsed.keybindings.enabled).toBe(true);
     expect(parsed.keybindings.bindings).toHaveLength(5);
     expect(parsed.cursor).toEqual({ visible: 'auto' });

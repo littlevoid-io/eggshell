@@ -29,7 +29,10 @@ export const boundsSchema = z
   .object({
     x: z.number().int('bounds.x must be an integer'),
     y: z.number().int('bounds.y must be an integer'),
-    width: z.number().int('bounds.width must be an integer').positive('bounds.width must be positive'),
+    width: z
+      .number()
+      .int('bounds.width must be an integer')
+      .positive('bounds.width must be positive'),
     height: z
       .number()
       .int('bounds.height must be an integer')

@@ -8,8 +8,7 @@ import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescrip
 const PURE_CORE_FILES = ['src/layout/resolve.ts', 'src/layout/signature.ts'];
 
 const cliExits = {
-  selector:
-    "CallExpression[callee.object.name='process'][callee.property.name=/^(exit|abort)$/]",
+  selector: "CallExpression[callee.object.name='process'][callee.property.name=/^(exit|abort)$/]",
   message: 'cli-exits: only src/cli/bin.ts may exit. Throw an error instead.',
 };
 
@@ -20,7 +19,7 @@ const argvSpawn = [
   },
   {
     selector:
-      "CallExpression[callee.object.name=/^(child_process|childProcess|cp)$/][callee.property.name=/^(exec|execSync)$/]",
+      'CallExpression[callee.object.name=/^(child_process|childProcess|cp)$/][callee.property.name=/^(exec|execSync)$/]',
     message: 'argv-spawn: exec/execSync run through a shell. Use execa with an argv array.',
   },
 ];
@@ -56,7 +55,7 @@ export default tseslint.config(
 
   // Baseline for src.
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'src/**/*.cts'],
     extends: [tseslint.configs.recommended, importX.flatConfigs.recommended],
     languageOptions: {
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
@@ -73,6 +72,12 @@ export default tseslint.config(
       'no-restricted-imports': ['error', argvSpawnImports],
       ...sizeLimits,
     },
+  },
+
+  // The sandboxed preload ships as CommonJS.
+  {
+    files: ['src/**/*.cts'],
+    rules: { '@typescript-eslint/no-require-imports': ['error', { allowAsImport: true }] },
   },
 
   // cli-exits: the one file allowed to exit.

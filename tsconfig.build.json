@@ -1,14 +1,4 @@
 {
   "extends": "./tsconfig.json",
-  // src/shell/preload.ts is excluded here because it must ship as CommonJS
-  // (dist/preload.cjs), not this program's ESM output -- see preload.ts's
-  // "Build note" and the dedicated `build:preload` script in package.json.
-  // Without this exclude, tsc would additionally emit an unused, non-functional
-  // dist/shell/preload.js (ESM) alongside the real dist/preload.cjs.
-  "exclude": [
-    "**/*.test.ts",
-    "**/__fixtures__/**",
-    "src/__testing__/**",
-    "src/shell/preload.ts"
-  ]
+  "exclude": ["**/*.test.ts", "src/__testing__/**"]
 }
