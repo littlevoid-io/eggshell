@@ -1,10 +1,13 @@
-import { app, ipcMain, screen, session } from 'electron';
+import { app, ipcMain, screen, session, type WebContents } from 'electron';
 import { readResolvedApp } from '../config/resolved.js';
 import type { Logger } from '../logging/logger.js';
 import { parseShellArgs } from './args.js';
+import { createBlackout } from './blackout.js';
 import { applyBrowserPermissions } from './browser-permissions.js';
+import { registerBuiltinChannels } from './channels.js';
 import { applyChromiumFlags } from './chromium-flags.js';
 import { createCursorController, initialCursorVisible } from './cursor.js';
+import { createIpcRouter } from './ipc.js';
 import { attachKeybindings, type CommandHandlers } from './keybindings.js';
 import { keepDisplayAwake, watchParent } from './lifecycle.js';
 import { createShellLogger } from './logger.js';
@@ -34,6 +37,19 @@ function attachFeatures(windows: readonly ManagedWindow[], logger: Logger): void
   }
 }
 
+function wireIpc(windows: readonly ManagedWindow[], logger: Logger): void {
+  const windowIdOf = (sender: WebContents) =>
+    windows.find(w => w.window.webContents === sender)?.id;
+  registerRendererLogChannel(ipcMain, windowIdOf, logger);
+  const router = createIpcRouter(windowIdOf, logger);
+  registerBuiltinChannels(router, {
+    windows,
+    quit: () => app.quit(),
+    blackout: createBlackout(() => windows[0]?.window),
+  });
+  router.attach(ipcMain);
+}
+
 async function onReady(): Promise<void> {
   const logger = await createShellLogger(resolved);
   applyBrowserPermissions(session.defaultSession, config.browserPermissions);
@@ -42,11 +58,7 @@ async function onReady(): Promise<void> {
   const windows = createWindows({ resolved, screen, logger });
   attachFeatures(windows, logger);
   for (const { id, window } of windows) forwardConsoleMessages(window, id, logger);
-  registerRendererLogChannel(
-    ipcMain,
-    sender => windows.find(w => w.window.webContents === sender)?.id,
-    logger
-  );
+  wireIpc(windows, logger);
   const stopWatching = watchTopology({ resolved, screen, windows, logger });
   app.once('before-quit', stopWatching);
   logger.info('Windows opened', { count: windows.length, isDev: resolved.isDev });

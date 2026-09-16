@@ -32,10 +32,10 @@ Status: `ported` (behavior carried over) | `rewritten` (new implementation, same
 | `before-input-event` keybindings               | `keybindings` section, `src/shell/keybindings.ts`                        | rewritten | `ctrl+q` quits; `shift+c` toggles cursor                     |
 | `keybindings.json` defaults                    | `keybindingsSchema` defaults                                             | ported    | Absent section still quits on `ctrl+q`                       |
 | Cursor toggle (`applyCursorToWindows`)         | `cursor` section, `src/shell/cursor.ts`                                  | rewritten | Cursor hidden at start when `cursor.visible: false`          |
-| Blackout window (`app:blackout:show/hide` IPC) | `src/shell/blackout.ts` (IPC wiring todo)                                | ported    | IPC fades to black and back                                  |
+| Blackout window (`app:blackout:show/hide` IPC) | `src/shell/blackout.ts` via `blackout:show/hide` IPC                     | ported    | IPC fades to black and back                                  |
 | Window icon (`iconPath`, `public/ui/icon.png`) | `windows[].icon`, `icon` section                                         | todo      | Taskbar and exe show the app icon                            |
-| `state-sync:*` IPC broadcast between windows   | `src/shell/ipc`                                                          | todo      | Two windows exchange state via preload API                   |
-| `app:quit` IPC                                 | `src/shell/ipc`                                                          | todo      | Renderer can request quit                                    |
+| `state-sync:*` IPC broadcast between windows   | `src/shell/channels.ts`, `window.eggshell.invoke/on`                     | rewritten | Two windows exchange state via preload API                   |
+| `app:quit` IPC                                 | `src/shell/channels.ts`                                                  | ported    | Renderer can request quit                                    |
 | Renderer console → main log                    | `src/shell/renderer-logs.ts` (`console-message` + `window.eggshell.log`) | rewritten | `console.error` in page appears in log file                  |
 
 ## Processes
