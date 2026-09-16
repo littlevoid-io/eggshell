@@ -10,12 +10,7 @@ export type {
 } from './types.js';
 export { LINE_REPLAY_BUFFER_SIZE } from './types.js';
 export { waitForReadiness } from './readiness.js';
-export type {
-  ReadinessProbe,
-  ReadinessContext,
-  ProbeTcpFn,
-  ProbeHttpFn,
-} from './readiness.js';
+export type { ReadinessProbe, ReadinessContext, ProbeTcpFn, ProbeHttpFn } from './readiness.js';
 export { createProcessSupervisor } from './supervisor.js';
 export type {
   ProcessSupervisor,
@@ -35,4 +30,3 @@ export type {
 } from './shutdown.js';
 export { createRateWindow } from './rate-window.js';
 export type { RateWindow } from './rate-window.js';
-

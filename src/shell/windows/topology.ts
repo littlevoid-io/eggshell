@@ -47,37 +47,55 @@ function forEachPlacement(
   });
 }
 
-/** Re-applies the layout when displays change, through the topology supervisor's debounce and attempt caps. */
-export function watchTopology({
-  resolved,
-  screen,
-  windows,
-  logger,
-}: WatchTopologyOptions): () => void {
-  const displayIdOf = (bounds: Electron.Rectangle) => screen.getDisplayMatching(bounds).id;
-  const supervisor = createTopologySupervisor({
-    ...resolved.config.display.supervisor,
+export interface TopologyWatcher {
+  reapply(): void;
+  dispose(): void;
+}
+
+function applyPlacements(
+  windows: readonly ManagedWindow[],
+  resolved: ResolvedApp,
+  displays: readonly DisplaySnapshot[],
+  logger: Logger
+): void {
+  forEachPlacement(windows, placementsFor(resolved, displays, logger), (managed, placement) => {
+    applyPlacement(managed.window, placement);
+    return true;
+  });
+}
+
+function createDisplaySupervisor(
+  options: WatchTopologyOptions,
+  applyCurrent: (displays: readonly DisplaySnapshot[]) => void
+) {
+  const displayIdOf = (bounds: Electron.Rectangle) => options.screen.getDisplayMatching(bounds).id;
+  return createTopologySupervisor({
+    ...options.resolved.config.display.supervisor,
     clock: systemClock,
-    logger,
-    apply: displays =>
-      void forEachPlacement(
-        windows,
-        placementsFor(resolved, displays, logger),
-        (managed, placement) => {
-          applyPlacement(managed.window, placement);
-          return true;
-        }
-      ),
+    logger: options.logger,
+    apply: applyCurrent,
     verify: displays =>
-      forEachPlacement(windows, placementsFor(resolved, displays, logger), (managed, placement) =>
-        matchesPlacement(managed.window, placement, displayIdOf)
+      forEachPlacement(
+        options.windows,
+        placementsFor(options.resolved, displays, options.logger),
+        (managed, placement) => matchesPlacement(managed.window, placement, displayIdOf)
       ),
   });
-  const onChange = () => supervisor.onDisplaysChanged(toDisplaySnapshots(screen));
-  const emitter: NodeJS.EventEmitter = screen;
+}
+
+/** Re-applies the layout when displays change, through the topology supervisor's debounce and attempt caps. */
+export function watchTopology(options: WatchTopologyOptions): TopologyWatcher {
+  const applyCurrent = (displays: readonly DisplaySnapshot[]) =>
+    applyPlacements(options.windows, options.resolved, displays, options.logger);
+  const supervisor = createDisplaySupervisor(options, applyCurrent);
+  const onChange = () => supervisor.onDisplaysChanged(toDisplaySnapshots(options.screen));
+  const emitter: NodeJS.EventEmitter = options.screen;
   SCREEN_EVENTS.forEach(event => emitter.on(event, onChange));
-  return () => {
-    SCREEN_EVENTS.forEach(event => emitter.off(event, onChange));
-    supervisor.dispose();
+  return {
+    reapply: () => applyCurrent(toDisplaySnapshots(options.screen)),
+    dispose: () => {
+      SCREEN_EVENTS.forEach(event => emitter.off(event, onChange));
+      supervisor.dispose();
+    },
   };
 }

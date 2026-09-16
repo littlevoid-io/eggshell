@@ -106,4 +106,3 @@ export function describeError(error: unknown): string {
 
 /** Discriminated union for operations that succeed with a value or fail with an error. */
 export type Outcome<T> = { ok: true; value: T } | { ok: false; error: unknown };
-

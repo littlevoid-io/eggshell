@@ -6,6 +6,7 @@ import type {
   chromiumFlagsSchema,
   companionSchema,
   cursorSchema,
+  dashboardSchema,
   displayPolicySchema,
   displayTargetSchema,
   keybindingsSchema,
@@ -30,4 +31,5 @@ export type CursorConfig = z.infer<typeof cursorSchema>;
 export type ChromeExtensions = z.infer<typeof chromeExtensionsSchema>;
 export type OfflineConfig = z.infer<typeof offlineSchema>;
 export type CompanionConfig = z.infer<typeof companionSchema>;
+export type DashboardConfig = z.infer<typeof dashboardSchema>;
 export type ShellConfig = z.infer<typeof shellConfigSchema>;

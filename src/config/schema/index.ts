@@ -9,6 +9,7 @@ import {
   chromiumFlagsSchema,
   companionSchema,
   cursorSchema,
+  dashboardSchema,
   keybindingsSchema,
   loggingConfigSchema,
   offlineSchema,
@@ -67,6 +68,7 @@ export const shellConfigSchema = z
     chromeExtensions: chromeExtensionsSchema.default(defaultsOf(chromeExtensionsSchema)),
     offline: offlineSchema.default(defaultsOf(offlineSchema)),
     companion: companionSchema.default(defaultsOf(companionSchema)),
+    dashboard: dashboardSchema.default(defaultsOf(dashboardSchema)),
     deploymentOverridePath: nonEmptyString('deploymentOverridePath').optional(),
   })
   .strict()

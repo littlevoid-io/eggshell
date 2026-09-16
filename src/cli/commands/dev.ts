@@ -8,6 +8,7 @@ import { createProcessSupervisor, type ProcessSupervisor } from '../../process/s
 import { shutdownAll } from '../../process/shutdown.js';
 import type { ManagedProcess, ProcessLine } from '../../process/types.js';
 import { launchElectron } from '../electron.js';
+import { printDashboardQr } from '../dashboard-qr.js';
 import { loadApp, toResolvedApp, type LoadedApp } from '../load-config.js';
 import { formatLogRecord, parseLogLine } from '../log-format.js';
 import { terminalLogger } from '../output.js';
@@ -71,6 +72,9 @@ async function runElectron(app: LoadedApp, logger: Logger): Promise<number> {
     appDir: app.appDir,
   });
   forwardOutput(electron);
+  if (app.config.dashboard.enabled) {
+    await printDashboardQr(app.config.dashboard.port);
+  }
   const stop = () => void stopEverything(supervisor, electron, logger);
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);

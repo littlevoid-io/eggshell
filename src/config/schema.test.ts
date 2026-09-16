@@ -135,6 +135,15 @@ function buildMaximalConfig() {
       description: 'Companion Description',
       windows: ['main'],
     },
+    dashboard: {
+      enabled: true,
+      port: 3005,
+      host: '0.0.0.0',
+      token: 'secret-token',
+      allowRestart: true,
+      allowQuit: true,
+      logBufferSize: 500,
+    },
     deploymentOverridePath: 'C:/ProgramData/eggshell/eggshell.deployment.json',
   };
 }
@@ -208,6 +217,14 @@ describe('shellConfigSchema — minimal config and defaults', () => {
       enabled: false,
       port: 3005,
       path: '/',
+    });
+    expect(parsed.dashboard).toEqual({
+      enabled: false,
+      port: 3005,
+      host: '0.0.0.0',
+      allowRestart: true,
+      allowQuit: true,
+      logBufferSize: 500,
     });
     expect(parsed.display.supervisor).toEqual({
       debounceMs: 300,

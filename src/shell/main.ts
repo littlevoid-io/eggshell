@@ -1,26 +1,24 @@
-import { app, ipcMain, screen, session, type BrowserWindow, type WebContents } from 'electron';
-import { systemClock } from '../clock.js';
-import { readResolvedApp } from '../config/resolved.js';
+import { app, ipcMain, screen, session } from 'electron';
+import { readResolvedApp, type ResolvedApp } from '../config/resolved.js';
+import { createLogBroadcast, type LogBroadcast } from '../logging/broadcast.js';
 import type { Logger } from '../logging/logger.js';
 import { resolvePackageAsset, resolveRoots } from '../paths/roots.js';
 import { parseShellArgs } from './args.js';
-import { createBlackout } from './blackout.js';
+import {
+  attachFeatures,
+  createOverlays,
+  createShellRouter,
+  type ShellOverlays,
+} from './bootstrap.js';
 import { applyBrowserPermissions } from './browser-permissions.js';
-import { registerBuiltinChannels } from './channels.js';
 import { applyChromiumFlags } from './chromium-flags.js';
-import { createCompanionOverlay, type CompanionOverlay } from './companion/index.js';
-import { openFolder } from './companion/open-folder.js';
-import { createCursorController, initialCursorVisible } from './cursor.js';
-import { createIpcRouter, type IpcRouter } from './ipc.js';
-import { attachKeybindings, type CommandHandlers } from './keybindings.js';
+import { createDashboard } from './dashboard/index.js';
 import { keepDisplayAwake, watchParent } from './lifecycle.js';
 import { createShellLogger } from './logger.js';
-import { createOfflineOverlay, type OfflineOverlay } from './offline/index.js';
-import { createConnectivityProbe } from './offline/probe.js';
-import { attachOverlayView, type OverlayView } from './overlay-view.js';
-import { forwardConsoleMessages, registerRendererLogChannel } from './renderer-logs.js';
-import { createWindows, type ManagedWindow, shellPreloadPath } from './windows/create.js';
-import { watchTopology } from './windows/topology.js';
+import { forwardConsoleMessages } from './renderer-logs.js';
+import { createWindows, type ManagedWindow } from './windows/create.js';
+import { toDisplaySnapshots } from './windows/displays.js';
+import { watchTopology, type TopologyWatcher } from './windows/topology.js';
 
 const args = parseShellArgs(process.argv);
 const resolved = readResolvedApp(args.resolvedAppPath);
@@ -30,100 +28,113 @@ app.setName(config.productName);
 app.setPath('userData', resolved.userData);
 applyChromiumFlags(app.commandLine, config.chromiumFlags, resolved.isDev);
 
-interface ShellOverlays {
-  readonly offline: OfflineOverlay;
-  readonly companion: CompanionOverlay;
-}
-
-function attachOverlay(asset: string): (window: BrowserWindow) => OverlayView {
-  const roots = resolveRoots({ projectRoot: resolved.appDir, userDataRoot: resolved.userData });
-  const htmlPath = resolvePackageAsset(roots, asset);
-  return window => attachOverlayView({ window, htmlPath, preloadPath: shellPreloadPath() });
-}
-
-function createOffline(windows: readonly ManagedWindow[], router: IpcRouter, logger: Logger) {
-  return createOfflineOverlay({
-    config: config.offline,
-    windows,
-    attach: attachOverlay('assets/offline.html'),
-    probe: createConnectivityProbe({ pingUrl: config.offline.pingUrl }),
-    router,
-    clock: systemClock,
-    logger,
-  });
-}
-
-function createCompanion(windows: readonly ManagedWindow[], router: IpcRouter, logger: Logger) {
-  return createCompanionOverlay({
-    config: config.companion,
-    resolved,
-    windows,
-    attach: attachOverlay('assets/companion.html'),
-    router,
-    openFolder,
-    logger,
-  });
-}
-
-function createOverlays(
+function buildDashboardStatus(
+  resolvedApp: ResolvedApp,
   windows: readonly ManagedWindow[],
-  router: IpcRouter,
-  logger: Logger
-): ShellOverlays {
+  overlays: ShellOverlays
+) {
   return {
-    offline: createOffline(windows, router, logger),
-    companion: createCompanion(windows, router, logger),
+    resolved: resolvedApp,
+    windows,
+    displays: () => toDisplaySnapshots(screen),
+    processes: () => [],
+    offline: overlays.offline,
+    companion: overlays.companion,
   };
 }
 
-function attachFeatures(
+function buildDashboardActions(
   windows: readonly ManagedWindow[],
   overlays: ShellOverlays,
-  logger: Logger
-): void {
-  const cursor = createCursorController(initialCursorVisible(config.cursor, config.windows));
-  const handlers: CommandHandlers = {
-    'app.quit': () => app.quit(),
-    'cursor.toggle': () => cursor.toggle(),
-    'offline.toggle': () => overlays.offline.toggle(),
-    'companion.toggle': () => overlays.companion.toggle(),
-  };
-  for (const { window } of windows) {
-    cursor.attach(window);
-    attachKeybindings(window, config.keybindings, handlers, logger);
-  }
-}
-
-function createShellRouter(windows: readonly ManagedWindow[], logger: Logger): IpcRouter {
-  const windowIdOf = (sender: WebContents) =>
-    windows.find(w => w.window.webContents === sender)?.id;
-  registerRendererLogChannel(ipcMain, windowIdOf, logger);
-  const router = createIpcRouter(windowIdOf, logger);
-  registerBuiltinChannels(router, {
+  recalculateLayout: () => void
+) {
+  return {
     windows,
+    offline: overlays.offline,
+    companion: overlays.companion,
+    recalculateLayout,
+    relaunch: () => {
+      app.relaunch();
+      app.quit();
+    },
     quit: () => app.quit(),
-    blackout: createBlackout(() => windows[0]?.window),
-  });
-  return router;
+  };
 }
 
-async function onReady(): Promise<void> {
-  const logger = await createShellLogger(resolved);
-  applyBrowserPermissions(session.defaultSession, config.browserPermissions);
-  keepDisplayAwake();
-  if (args.parentPid !== undefined) watchParent(args.parentPid, () => app.quit());
-  const windows = createWindows({ resolved, screen, logger });
-  const router = createShellRouter(windows, logger);
-  const overlays = createOverlays(windows, router, logger);
-  router.attach(ipcMain);
-  attachFeatures(windows, overlays, logger);
-  for (const { id, window } of windows) forwardConsoleMessages(window, id, logger);
-  const stopWatching = watchTopology({ resolved, screen, windows, logger });
+interface DashboardInitOptions {
+  readonly windows: readonly ManagedWindow[];
+  readonly overlays: ShellOverlays;
+  readonly recalculateLayout: () => void;
+  readonly logs: LogBroadcast;
+  readonly logger: Logger;
+}
+
+function initDashboard(options: DashboardInitOptions) {
+  const roots = resolveRoots({ projectRoot: resolved.appDir, userDataRoot: resolved.userData });
+  return createDashboard({
+    config: config.dashboard,
+    uiDirectory: resolvePackageAsset(roots, 'dist/dashboard-ui'),
+    status: buildDashboardStatus(resolved, options.windows, options.overlays),
+    actions: buildDashboardActions(options.windows, options.overlays, options.recalculateLayout),
+    logs: options.logs,
+    logger: options.logger,
+  });
+}
+
+function startDashboard(
+  windows: readonly ManagedWindow[],
+  overlays: ShellOverlays,
+  reapply: () => void,
+  logs: LogBroadcast,
+  logger: Logger
+) {
+  const dashboard = initDashboard({ windows, overlays, recalculateLayout: reapply, logs, logger });
+  void dashboard.start();
+  return dashboard;
+}
+
+function registerShutdown(
+  overlays: ShellOverlays,
+  topology: TopologyWatcher,
+  dashboard: ReturnType<typeof initDashboard>
+): void {
   app.once('before-quit', () => {
     overlays.offline.dispose();
     overlays.companion.dispose();
-    stopWatching();
+    topology.dispose();
+    void dashboard.stop();
   });
+}
+
+async function setupLogger(resolvedApp: ResolvedApp, logBufferSize: number) {
+  const logBroadcast = createLogBroadcast(logBufferSize);
+  const logger = await createShellLogger(resolvedApp, [logBroadcast]);
+  return { logBroadcast, logger };
+}
+
+function initShell(resolvedApp: ResolvedApp, parentPid?: number) {
+  applyBrowserPermissions(session.defaultSession, resolvedApp.config.browserPermissions);
+  keepDisplayAwake();
+  if (parentPid !== undefined) watchParent(parentPid, () => app.quit());
+}
+
+async function onReady(): Promise<void> {
+  const { logBroadcast, logger } = await setupLogger(resolved, config.dashboard.logBufferSize);
+  initShell(resolved, args.parentPid);
+  const windows = createWindows({ resolved, screen, logger });
+  const router = createShellRouter(ipcMain, windows, () => app.quit(), logger);
+  const overlays = createOverlays(resolved, windows, router, logger);
+  attachFeatures(resolved, windows, overlays, () => app.quit(), logger);
+  for (const { id, window } of windows) forwardConsoleMessages(window, id, logger);
+  const topology = watchTopology({ resolved, screen, windows, logger });
+  const dashboard = startDashboard(
+    windows,
+    overlays,
+    () => topology.reapply(),
+    logBroadcast,
+    logger
+  );
+  registerShutdown(overlays, topology, dashboard);
   logger.info('Windows opened', { count: windows.length, isDev: resolved.isDev });
 }
 

@@ -5,8 +5,11 @@ import { createRollingFileStream } from '../logging/file-stream.js';
 import { createChildLogger, type Logger } from '../logging/logger.js';
 import { createPinoLogger } from '../logging/pino-logger.js';
 
-export async function createShellLogger(resolved: ResolvedApp): Promise<Logger> {
-  const streams: DestinationStream[] = [process.stdout];
+export async function createShellLogger(
+  resolved: ResolvedApp,
+  extraStreams: readonly DestinationStream[] = []
+): Promise<Logger> {
+  const streams: DestinationStream[] = [process.stdout, ...extraStreams];
   const fileConfig = resolved.config.logging.file;
   if (fileConfig.enabled) {
     const fileStream = await createRollingFileStream({

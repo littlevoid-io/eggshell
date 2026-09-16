@@ -137,7 +137,6 @@ export interface ShutdownOptions {
   readonly taskkill?: TaskkillInvoker;
 }
 
-
 type ExitOutcome = { readonly ok: true; readonly value: ProcessExit } | { readonly ok: false };
 
 /**

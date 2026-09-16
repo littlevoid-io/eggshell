@@ -42,10 +42,6 @@ class RollingRateWindow implements RateWindow {
   }
 }
 
-export function createRateWindow(
-  clock: Clock,
-  windowMs: number,
-  maxAttempts: number
-): RateWindow {
+export function createRateWindow(clock: Clock, windowMs: number, maxAttempts: number): RateWindow {
   return new RollingRateWindow(clock, windowMs, maxAttempts);
 }

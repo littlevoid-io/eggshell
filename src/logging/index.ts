@@ -5,3 +5,5 @@ export type { PinoLoggerOptions } from './pino-logger.js';
 export { createPinoLogger } from './pino-logger.js';
 export type { RollingFileOptions } from './file-stream.js';
 export { createRollingFileStream } from './file-stream.js';
+export type { LogBroadcast } from './broadcast.js';
+export { createLogBroadcast } from './broadcast.js';

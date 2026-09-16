@@ -115,3 +115,18 @@ export const companionSchema = z
     windows: z.array(nonEmptyString('companion.windows[]')).optional(),
   })
   .strict();
+
+export const dashboardSchema = z
+  .object({
+    enabled: disabledByDefault,
+    port: portNumber('dashboard.port').default(3005),
+    /** Enabling the dashboard is the opt-in to bind a LAN interface; phones on the venue network scan the companion QR to reach it. */
+    host: nonEmptyString('dashboard.host').default('0.0.0.0'),
+    /** When set, /api requires `Authorization: Bearer <token>`, `x-dashboard-token` or `?token=`. */
+    token: nonEmptyString('dashboard.token').optional(),
+    allowRestart: z.boolean().default(true),
+    allowQuit: z.boolean().default(true),
+    /** Lines kept for the log console and replayed to new SSE clients. */
+    logBufferSize: positiveInt('dashboard.logBufferSize').default(500),
+  })
+  .strict();
