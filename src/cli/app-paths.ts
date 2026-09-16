@@ -1,5 +1,5 @@
 import path from 'node:path';
-import envPaths from 'env-paths';
+import { userDataFor } from '../paths/user-data.js';
 
 export interface AppPaths {
   readonly appDir: string;
@@ -14,7 +14,7 @@ export function resolveAppPaths(appDir: string, appId: string): AppPaths {
   const stateDir = path.join(appDir, '.eggshell');
   return {
     appDir,
-    userData: envPaths(appId, { suffix: '' }).data,
+    userData: userDataFor(appId),
     stateDir,
     resolvedAppPath: path.join(stateDir, 'resolved.json'),
   };

@@ -17,17 +17,15 @@ export interface ManagedWindow {
 export interface CreateWindowsOptions {
   readonly resolved: ResolvedApp;
   readonly screen: Screen;
+  readonly preloadPath: string;
   readonly logger: Logger;
-}
-
-export function shellPreloadPath(): string {
-  return path.join(import.meta.dirname, '..', 'preload.cjs');
 }
 
 function windowOptions(
   placement: WindowPlacement,
   config: WindowConfig,
-  resolved: ResolvedApp
+  resolved: ResolvedApp,
+  preloadPath: string
 ): BrowserWindowConstructorOptions {
   const icon = config.icon ?? resolved.config.icon;
   return {
@@ -39,7 +37,7 @@ function windowOptions(
     ...(config.backgroundColor ? { backgroundColor: config.backgroundColor } : {}),
     ...(icon ? { icon: path.resolve(resolved.appDir, icon) } : {}),
     webPreferences: {
-      preload: shellPreloadPath(),
+      preload: preloadPath,
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
@@ -52,10 +50,10 @@ function windowOptions(
 function openWindow(
   placement: WindowPlacement,
   config: WindowConfig,
-  resolved: ResolvedApp,
-  logger: Logger
+  options: CreateWindowsOptions
 ): BrowserWindow {
-  const window = new BrowserWindow(windowOptions(placement, config, resolved));
+  const { resolved, logger } = options;
+  const window = new BrowserWindow(windowOptions(placement, config, resolved, options.preloadPath));
   if (placement.mode === 'kiosk') lockKiosk(window, resolved.isDev, logger);
   if (config.showWhenReady) window.once('ready-to-show', () => window.show());
   void window.loadURL(toWindowUrl(config.url, resolved.appDir));
@@ -68,7 +66,8 @@ function logProblem(logger: Logger, problem: LayoutProblem): void {
 }
 
 /** Resolves placement for every configured window and opens the ones that got one. */
-export function createWindows({ resolved, screen, logger }: CreateWindowsOptions): ManagedWindow[] {
+export function createWindows(options: CreateWindowsOptions): ManagedWindow[] {
+  const { resolved, screen, logger } = options;
   const { config } = resolved;
   const layout = resolveLayout({
     displays: toDisplaySnapshots(screen),
@@ -79,8 +78,6 @@ export function createWindows({ resolved, screen, logger }: CreateWindowsOptions
   return layout.placements.flatMap(placement => {
     const windowConfig = config.windows.find(window => window.id === placement.windowId);
     if (!windowConfig) return [];
-    return [
-      { id: placement.windowId, window: openWindow(placement, windowConfig, resolved, logger) },
-    ];
+    return [{ id: placement.windowId, window: openWindow(placement, windowConfig, options) }];
   });
 }

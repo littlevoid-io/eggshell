@@ -33,21 +33,22 @@ export default ({ appDir, isDev }) => ({
 
 Sections map one-to-one onto features:
 
-| Section              | Feature                                                                      |
-| -------------------- | ---------------------------------------------------------------------------- |
-| `windows`            | Placement (`target`, `kiosk`, `bounds`), hardening, icon                     |
-| `processes`          | Child servers per phase (`dev`, `production`, `always`), readiness, restart  |
-| `display`            | Roles, touch probe, topology supervisor tuning                               |
-| `logging`            | File sink with rotation, level, directory                                    |
-| `keybindings`        | Key → command list (quit, toggle cursor/offline/companion)                   |
-| `cursor`             | Initial visibility                                                           |
-| `chromeExtensions`   | Unpacked extension paths, relative to `appDir`                               |
-| `chromiumFlags`      | Chromium command-line switches appended at startup                           |
-| `offline`            | Connectivity probe and overlay                                               |
-| `companion`          | QR overlay pointing to a LAN URL                                             |
-| `dashboard`          | HTTP control API, live log stream, static UI                                 |
-| `soak`               | Soak test: random UI interaction (monkey testing) for a set duration         |
-| `browserPermissions` | Chromium permission requests (`getUserMedia`, notifications, ...) allow-list |
+| Section              | Feature                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| `windows`            | Placement (`target`, `kiosk`, `bounds`), hardening, icon                              |
+| `processes`          | Child servers per phase (`dev`, `production`, `always`), readiness, restart           |
+| `display`            | Roles, touch probe, topology supervisor tuning                                        |
+| `logging`            | File sink with rotation, level, directory                                             |
+| `keybindings`        | Key → command list (quit, toggle cursor/offline/companion)                            |
+| `cursor`             | Initial visibility                                                                    |
+| `chromeExtensions`   | Unpacked extension paths, relative to `appDir`                                        |
+| `chromiumFlags`      | Chromium command-line switches appended at startup                                    |
+| `offline`            | Connectivity probe and overlay                                                        |
+| `companion`          | QR overlay pointing to a LAN URL                                                      |
+| `dashboard`          | HTTP control API, live log stream, static UI                                          |
+| `soak`               | Soak test: random UI interaction (monkey testing) for a set duration                  |
+| `browserPermissions` | Chromium permission requests (`getUserMedia`, notifications, ...) allow-list          |
+| `build`              | Packaging: output dir, consumer files to copy, extraResources, `dir` or `nsis` target |
 
 ### Defaults
 

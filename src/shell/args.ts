@@ -10,9 +10,12 @@ function valueAfter(argv: readonly string[], name: string): string | undefined {
   return index >= 0 ? argv[index + 1] : undefined;
 }
 
-/** Arguments the CLI appends when it spawns Electron. */
-export function parseShellArgs(argv: readonly string[]): ShellArgs {
-  const resolvedAppPath = valueAfter(argv, '--eggshell-app');
+/**
+ * The CLI appends `--eggshell-app <path>` when it spawns Electron; a packaged
+ * app has no CLI and falls back to the config staged next to its main.
+ */
+export function parseShellArgs(argv: readonly string[], stagedConfigPath?: string): ShellArgs {
+  const resolvedAppPath = valueAfter(argv, '--eggshell-app') ?? stagedConfigPath;
   if (!resolvedAppPath) {
     throw new LaunchError(
       'Missing --eggshell-app <path>. Start the shell through the eggshell CLI.'

@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type {
   boundsSchema,
+  buildConfigSchema,
   browserPermissionsSchema,
   chromeExtensionsSchema,
   chromiumFlagsSchema,
@@ -35,4 +36,5 @@ export type CompanionConfig = z.infer<typeof companionSchema>;
 export type DashboardConfig = z.infer<typeof dashboardSchema>;
 export type SoakConfig = z.infer<typeof soakSchema>;
 export type SoakAction = SoakConfig['actions'][number];
+export type BuildConfig = z.infer<typeof buildConfigSchema>;
 export type ShellConfig = z.infer<typeof shellConfigSchema>;

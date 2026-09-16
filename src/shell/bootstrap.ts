@@ -2,7 +2,6 @@ import type { BrowserWindow, IpcMain, WebContents } from 'electron';
 import { systemClock } from '../clock.js';
 import type { ResolvedApp } from '../config/resolved.js';
 import type { Logger } from '../logging/logger.js';
-import { resolvePackageAsset, resolveRoots } from '../paths/roots.js';
 import { createBlackout } from './blackout.js';
 import { registerBuiltinChannels } from './channels.js';
 import { createCompanionOverlay, type CompanionOverlay } from './companion/index.js';
@@ -13,33 +12,31 @@ import { attachKeybindings, type CommandHandlers } from './keybindings.js';
 import { createOfflineOverlay, type OfflineOverlay } from './offline/index.js';
 import { createConnectivityProbe } from './offline/probe.js';
 import { attachOverlayView, type OverlayView } from './overlay-view.js';
+import type { ShellPaths } from './paths.js';
 import { registerRendererLogChannel } from './renderer-logs.js';
-import { type ManagedWindow, shellPreloadPath } from './windows/create.js';
+import type { ManagedWindow } from './windows/create.js';
 
 export interface ShellOverlays {
   readonly offline: OfflineOverlay;
   readonly companion: CompanionOverlay;
 }
 
-function attachOverlay(
-  asset: string,
-  resolved: ResolvedApp
-): (window: BrowserWindow) => OverlayView {
-  const roots = resolveRoots({ projectRoot: resolved.appDir, userDataRoot: resolved.userData });
-  const htmlPath = resolvePackageAsset(roots, asset);
-  return window => attachOverlayView({ window, htmlPath, preloadPath: shellPreloadPath() });
+function attachOverlay(asset: string, paths: ShellPaths): (window: BrowserWindow) => OverlayView {
+  const htmlPath = paths.asset(asset);
+  return window => attachOverlayView({ window, htmlPath, preloadPath: paths.preload });
 }
 
 function createOffline(
   resolved: ResolvedApp,
   windows: readonly ManagedWindow[],
   router: IpcRouter,
-  logger: Logger
+  logger: Logger,
+  paths: ShellPaths
 ) {
   return createOfflineOverlay({
     config: resolved.config.offline,
     windows,
-    attach: attachOverlay('assets/offline.html', resolved),
+    attach: attachOverlay('offline.html', paths),
     probe: createConnectivityProbe({ pingUrl: resolved.config.offline.pingUrl }),
     router,
     clock: systemClock,
@@ -51,13 +48,14 @@ function createCompanion(
   resolved: ResolvedApp,
   windows: readonly ManagedWindow[],
   router: IpcRouter,
-  logger: Logger
+  logger: Logger,
+  paths: ShellPaths
 ) {
   return createCompanionOverlay({
     config: resolved.config.companion,
     resolved,
     windows,
-    attach: attachOverlay('assets/companion.html', resolved),
+    attach: attachOverlay('companion.html', paths),
     router,
     openFolder,
     logger,
@@ -68,11 +66,12 @@ export function createOverlays(
   resolved: ResolvedApp,
   windows: readonly ManagedWindow[],
   router: IpcRouter,
-  logger: Logger
+  logger: Logger,
+  paths: ShellPaths
 ): ShellOverlays {
   return {
-    offline: createOffline(resolved, windows, router, logger),
-    companion: createCompanion(resolved, windows, router, logger),
+    offline: createOffline(resolved, windows, router, logger, paths),
+    companion: createCompanion(resolved, windows, router, logger, paths),
   };
 }
 

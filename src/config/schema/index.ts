@@ -16,7 +16,10 @@ import {
   soakSchema,
 } from './features.js';
 
+import { buildConfigSchema } from './build.js';
+
 export { boundsSchema } from './primitives.js';
+export { buildConfigSchema } from './build.js';
 export { displayTargetSchema, windowConfigSchema } from './window.js';
 export { processConfigSchema } from './process.js';
 export { displayPolicySchema } from './display.js';
@@ -71,6 +74,7 @@ export const shellConfigSchema = z
     companion: companionSchema.default(defaultsOf(companionSchema)),
     dashboard: dashboardSchema.default(defaultsOf(dashboardSchema)),
     soak: soakSchema.default(defaultsOf(soakSchema)),
+    build: buildConfigSchema.default(defaultsOf(buildConfigSchema)),
     deploymentOverridePath: nonEmptyString('deploymentOverridePath').optional(),
   })
   .strict()

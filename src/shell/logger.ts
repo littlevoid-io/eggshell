@@ -5,11 +5,18 @@ import { createRollingFileStream } from '../logging/file-stream.js';
 import { createChildLogger, type Logger } from '../logging/logger.js';
 import { createPinoLogger } from '../logging/pino-logger.js';
 
+export interface ShellLoggerOptions {
+  /** Off when nobody reads stdout (a packaged app started by a scheduler); a broken pipe would otherwise crash the shell. */
+  readonly stdout: boolean;
+  readonly extraStreams?: readonly DestinationStream[];
+}
+
 export async function createShellLogger(
   resolved: ResolvedApp,
-  extraStreams: readonly DestinationStream[] = []
+  options: ShellLoggerOptions
 ): Promise<Logger> {
-  const streams: DestinationStream[] = [process.stdout, ...extraStreams];
+  const streams: DestinationStream[] = [...(options.extraStreams ?? [])];
+  if (options.stdout) streams.unshift(process.stdout);
   const fileConfig = resolved.config.logging.file;
   if (fileConfig.enabled) {
     const fileStream = await createRollingFileStream({
