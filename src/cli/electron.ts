@@ -41,6 +41,8 @@ export function launchElectron({
       String(process.pid),
     ],
     cwd: appDir,
+    // Kiosk pages run without a CSP; the dev-only warning would drown the renderer log.
+    env: { ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' },
     ...(logger ? { logger } : {}),
   });
 }
