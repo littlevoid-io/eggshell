@@ -19,7 +19,7 @@ export function trackHandle(record: ProcessRecord, handle: ManagedProcess): void
 
 async function checkPortsFree(ctx: SupervisorContext, config: ProcessConfig): Promise<void> {
   try {
-    await assertPortsFree(config.requirePortsFree, ctx.host, ctx.logger);
+    await assertPortsFree(config.requirePortsFree, ctx.host);
   } catch (error) {
     throw new ProcessError(`process "${config.id}": ${describeError(error)}`, {
       processId: config.id,
