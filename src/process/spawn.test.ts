@@ -1,22 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { spawn as nodeSpawn } from 'node:child_process';
 import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { execa } from 'execa';
 import { ProcessError } from '../errors.js';
 import { spawnManaged } from './spawn.js';
 import type { ManagedProcess, ProcessLine } from './types.js';
 
-// Wraps the real `node:child_process.spawn` in a `vi.fn` that still forwards
-// to the actual implementation, so every other test in this file keeps
-// spawning real child processes while the I2 regression test below can
-// assert exactly how `spawn` was called.
-vi.mock('node:child_process', async importOriginal => {
-  const actual = await importOriginal<typeof import('node:child_process')>();
-  return { ...actual, spawn: vi.fn(actual.spawn) };
+vi.mock('execa', async importOriginal => {
+  const actual = await importOriginal<typeof import('execa')>();
+  return { ...actual, execa: vi.fn(actual.execa) };
 });
 
-const mockedSpawn = vi.mocked(nodeSpawn);
+const mockedExeca = vi.mocked(execa);
 
 /** Subscribes immediately and collects every line delivered from then on (including replay). */
 function collectLines(managed: ManagedProcess): ProcessLine[] {
@@ -27,7 +23,7 @@ function collectLines(managed: ManagedProcess): ProcessLine[] {
 
 describe('spawnManaged', () => {
   afterEach(() => {
-    mockedSpawn.mockClear();
+    mockedExeca.mockClear();
   });
 
   it('I2: spawns via (command, argsArray, options) with options.shell left unset', async () => {
@@ -38,11 +34,15 @@ describe('spawnManaged', () => {
     });
     await managed.exited;
 
-    expect(mockedSpawn).toHaveBeenCalledTimes(1);
-    const call = mockedSpawn.mock.calls[0]!;
+    expect(mockedExeca).toHaveBeenCalledTimes(1);
+    const call = mockedExeca.mock.calls[0] as unknown as [
+      string,
+      string[],
+      { shell?: unknown } | undefined,
+    ];
     expect(call[0]).toBe(process.execPath);
     expect(call[1]).toEqual(['-e', 'process.exit(0)']);
-    const options = call[2] as { shell?: unknown } | undefined;
+    const options = call[2];
     expect(options?.shell).toBeUndefined();
   });
 
@@ -50,7 +50,7 @@ describe('spawnManaged', () => {
     expect(() => spawnManaged({ id: 'whitespace', command: 'node -e 1', args: [] })).toThrow(
       ProcessError
     );
-    expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(mockedExeca).not.toHaveBeenCalled();
   });
 
   it('allows a real, existing executable whose own path contains whitespace', async () => {
@@ -67,8 +67,8 @@ describe('spawnManaged', () => {
         args: ['-e', 'process.exit(0)'],
       });
       await managed.exited;
-      expect(mockedSpawn).toHaveBeenCalledTimes(1);
-      expect(mockedSpawn.mock.calls[0]![0]).toBe(spacedPath);
+      expect(mockedExeca).toHaveBeenCalledTimes(1);
+      expect(mockedExeca.mock.calls[0]![0]).toBe(spacedPath);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -78,7 +78,7 @@ describe('spawnManaged', () => {
     'rejects a command containing the shell metacharacter case %s',
     command => {
       expect(() => spawnManaged({ id: 'metachar', command, args: [] })).toThrow(ProcessError);
-      expect(mockedSpawn).not.toHaveBeenCalled();
+      expect(mockedExeca).not.toHaveBeenCalled();
     }
   );
 

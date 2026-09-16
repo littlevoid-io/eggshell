@@ -26,7 +26,6 @@ export type {
   ShutdownOptions,
   ShutdownResult,
   ShutdownOutcome,
-  TaskkillInvoker,
 } from './shutdown.js';
 export { createRateWindow } from './rate-window.js';
 export type { RateWindow } from './rate-window.js';

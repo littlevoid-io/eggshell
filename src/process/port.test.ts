@@ -145,4 +145,16 @@ describe('assertPortsFree', () => {
     expect(message).toContain('0');
     expect(message).toContain('70000');
   });
+
+  it('respects an injected detect function in isPortFree and assertPortsFree', async () => {
+    const fakeDetect = async (port: number) => (port === 8080 ? 8081 : port);
+    await expect(isPortFree(8080, HOST, fakeDetect)).resolves.toBe(false);
+    await expect(isPortFree(9090, HOST, fakeDetect)).resolves.toBe(true);
+
+    const error = await assertPortsFree([8080], HOST, fakeDetect).catch(
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(ProcessError);
+    expect((error as ProcessError).message).toContain('8080');
+  });
 });
