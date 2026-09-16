@@ -5,7 +5,13 @@ import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescrip
 
 // Rules are named after docs/architecture.md#rules. Everything else is baseline lint.
 
-const PURE_CORE_FILES = ['src/layout/resolve.ts', 'src/layout/signature.ts'];
+const PURE_CORE_FILES = [
+  'src/layout/resolve.ts',
+  'src/layout/resolve-targets.ts',
+  'src/layout/resolve-problems.ts',
+  'src/layout/roles.ts',
+  'src/layout/signature.ts',
+];
 
 const cliExits = {
   selector: "CallExpression[callee.object.name='process'][callee.property.name=/^(exit|abort)$/]",
