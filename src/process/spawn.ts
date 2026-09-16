@@ -29,18 +29,9 @@ interface ExecaProcessResult {
 function pipeStream(
   stream: NodeJS.ReadableStream | null | undefined,
   streamName: ProcessStreamName,
-  id: string,
-  logger: Logger,
   lineStream: LineStreamHandle
 ): LineSplitter {
-  const splitter = createLineSplitter(text => {
-    if (streamName === 'stdout') {
-      logger.info(text, { processId: id, stream: streamName });
-    } else {
-      logger.warn(text, { processId: id, stream: streamName });
-    }
-    lineStream.emit({ stream: streamName, text });
-  });
+  const splitter = createLineSplitter(text => lineStream.emit({ stream: streamName, text }));
   stream?.on('data', (chunk: Buffer | string) => splitter.push(chunk));
   return splitter;
 }
@@ -83,13 +74,12 @@ function handleProcessResult(
 
 function setupLinePipes(
   child: { stdout?: NodeJS.ReadableStream | null; stderr?: NodeJS.ReadableStream | null },
-  id: string,
-  logger: Logger,
   lineStream: LineStreamHandle
 ): LineSplitter[] {
-  const stdout = pipeStream(child.stdout, 'stdout', id, logger, lineStream);
-  const stderr = pipeStream(child.stderr, 'stderr', id, logger, lineStream);
-  return [stdout, stderr];
+  return [
+    pipeStream(child.stdout, 'stdout', lineStream),
+    pipeStream(child.stderr, 'stderr', lineStream),
+  ];
 }
 
 function launchChild(
@@ -131,7 +121,7 @@ export function spawnManaged(options: SpawnManagedOptions): ManagedProcess {
 
   const child = launchChild(command, args, cwd, env);
   const lineStream = createLineStream();
-  const splitters = setupLinePipes(child, id, logger, lineStream);
+  const splitters = setupLinePipes(child, lineStream);
   const exited = child.then(result => handleProcessResult(result, id, command, logger, splitters));
 
   logger.info('process spawned', { processId: id, command, args, pid: child.pid });

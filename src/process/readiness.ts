@@ -1,4 +1,3 @@
-import waitOn from 'wait-on';
 import { systemClock, type Clock } from '../clock.js';
 import { noopLogger, type Logger } from '../logging/logger.js';
 import type { ProcessConfig } from '../config/types.js';
@@ -10,6 +9,7 @@ import {
   sleep,
   waitForLogLine,
 } from './readiness-log.js';
+import { waitOnHttp, waitOnTcp } from './readiness-wait-on.js';
 
 export type ReadinessProbe = ProcessConfig['readiness'];
 
@@ -50,39 +50,6 @@ async function pollUntilReady(
   throw new ReadinessSignalAbortedError();
 }
 
-async function waitOnTcp(port: number, timeoutMs: number): Promise<void> {
-  await waitOn({
-    resources: [`tcp:127.0.0.1:${port}`],
-    timeout: timeoutMs,
-    interval: 250,
-    tcpTimeout: 1000,
-    window: 0,
-  });
-}
-
-function toHttpGetUrl(rawUrl: string): string {
-  if (rawUrl.startsWith('https:')) {
-    return rawUrl.replace(/^https:/, 'https-get:');
-  }
-  return rawUrl.replace(/^http:/, 'http-get:');
-}
-
-async function waitOnHttp(
-  url: string,
-  expectStatus: number | undefined,
-  timeoutMs: number
-): Promise<void> {
-  await waitOn({
-    resources: [toHttpGetUrl(url)],
-    timeout: timeoutMs,
-    interval: 250,
-    tcpTimeout: 1000,
-    window: 0,
-    validateStatus: status =>
-      expectStatus !== undefined ? status === expectStatus : status >= 200 && status < 300,
-  });
-}
-
 function runTcpProbe(
   probe: { port: number },
   context: ReadinessContext,
@@ -92,7 +59,7 @@ function runTcpProbe(
   if (context.probeTcp) {
     return pollUntilReady(context.probeTcp.bind(null, probe.port), clock, sig);
   }
-  return waitOnTcp(probe.port, context.timeoutMs);
+  return waitOnTcp(probe.port, context.timeoutMs, context.processId);
 }
 
 function runHttpProbe(
@@ -104,7 +71,7 @@ function runHttpProbe(
   if (context.probeHttp) {
     return pollUntilReady(context.probeHttp.bind(null, probe.url, probe.expectStatus), clock, sig);
   }
-  return waitOnHttp(probe.url, probe.expectStatus, context.timeoutMs);
+  return waitOnHttp(probe.url, probe.expectStatus, context.timeoutMs, context.processId);
 }
 
 function dispatchProbe(
