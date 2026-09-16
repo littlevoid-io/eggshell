@@ -16,26 +16,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./cli": {
-      "types": "./dist/cli/bin.d.ts",
-      "import": "./dist/cli/bin.js"
-    },
-    "./plugins/dashboard": {
-      "types": "./dist/plugins/dashboard/index.d.ts",
-      "import": "./dist/plugins/dashboard/index.js"
-    },
-    "./plugins/offline": {
-      "types": "./dist/plugins/offline/index.d.ts",
-      "import": "./dist/plugins/offline/index.js"
-    },
-    "./plugins/companion": {
-      "types": "./dist/plugins/companion/index.d.ts",
-      "import": "./dist/plugins/companion/index.js"
-    },
-    "./plugins/soak": {
-      "types": "./dist/plugins/soak/index.d.ts",
-      "import": "./dist/plugins/soak/index.js"
     }
   },
   "files": [
@@ -44,10 +24,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "npm run build:main && npm run build:preload && npm run build:assets",
-    "build:main": "tsc -p tsconfig.build.json",
-    "build:preload": "tsc src/shell/preload.ts --ignoreConfig --module commonjs --moduleResolution node --target es2023 --outDir dist/.preload-tmp --skipLibCheck --esModuleInterop --ignoreDeprecations 6.0 && node -e \"const fs=require('fs');fs.copyFileSync('dist/.preload-tmp/preload.js','dist/preload.cjs');fs.rmSync('dist/.preload-tmp',{recursive:true,force:true});\"",
-    "build:assets": "node -e \"const fs=require('fs');fs.mkdirSync('dist/plugins/offline/assets',{recursive:true});fs.copyFileSync('src/plugins/offline/assets/offline.html','dist/plugins/offline/assets/offline.html');fs.mkdirSync('dist/plugins/dashboard/assets',{recursive:true});fs.copyFileSync('src/plugins/dashboard/assets/dashboard.html','dist/plugins/dashboard/assets/dashboard.html');fs.mkdirSync('dist/plugins/companion/assets',{recursive:true});fs.copyFileSync('src/plugins/companion/assets/companion.html','dist/plugins/companion/assets/companion.html');fs.mkdirSync('dist/plugins/soak/assets',{recursive:true});fs.copyFileSync('src/plugins/soak/assets/fuzzer.js','dist/plugins/soak/assets/fuzzer.js');\"",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -55,8 +32,7 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "smoke": "node scripts/smoke.mjs"
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
     "express": "^5.2.1",

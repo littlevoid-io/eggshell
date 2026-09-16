@@ -1,41 +1,27 @@
-# Egg Shell
+# eggshell
 
-A library for building Electron kiosk apps. It handles window management, multi-display layout, and process supervision, and comes with a CLI and a few optional plugins. Call `launch(config)` from your Electron main file and it takes care of the rest.
+CLI that owns the Electron process for kiosk installations. An exhibit repo holds one config file; eggshell handles windows, multi-display layout, child processes, logging, and packaging.
 
-> This package isn't published to npm yet — it's still private while things settle. To use it now, add it to your project as a local `file:` dependency instead of installing it normally.
+Status: pre-1.0, rebuilding the CLI and Electron layers. See [docs/architecture.md](docs/architecture.md) and [docs/provenance.md](docs/provenance.md).
 
 ## Quick start
 
 ```sh
-npx eggshell init my-kiosk
-cd my-kiosk
-npm install
+npx eggshell init
 npm run dev
 ```
 
-Check out [`examples/basic-kiosk`](examples/basic-kiosk) for a working example.
+## Commands
 
-## Features
-
-- Kiosk window management, including multi-display layout with roles and fallbacks
-- Supervises your app's child processes, restarting them and checking readiness as needed
-- Builds your app and generates a launch manifest, so a separate provisioning tool can pick it up
-- A `doctor` command that checks your setup before you deploy
-- Optional plugins: an offline overlay, a remote status/control dashboard, a QR-code companion overlay, and an interaction fuzzer for soak testing
-
-## CLI
-
-`eggshell <dev|build|start|doctor|init>` reads your `eggshell.config.{ts,mjs,js}` file. Add `--help` to any command to see its options.
-
-## Docs
-
-- [`docs/architecture.md`](docs/architecture.md) — how it's put together
-- [`docs/provisioning.md`](docs/provisioning.md) — hooking up an external provisioning tool
+`eggshell <dev|build|start|doctor|init>`. Add `--help` to any command.
 
 ## Development
 
 ```sh
-npm install && npm run build && npm run smoke
+npm install
+npm run typecheck
+npm test
+npm run lint
 ```
 
 ## License
