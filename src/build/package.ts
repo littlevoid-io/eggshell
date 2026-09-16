@@ -49,8 +49,7 @@ function executableName(productName: string): string {
   return sanitized.toLowerCase().replace(/\s+/g, '-');
 }
 
-/** Runs electron-builder and returns the absolute path of the produced executable. */
-export async function packageApp(options: PackageOptions): Promise<string> {
+async function runElectronBuilder(options: PackageOptions): Promise<void> {
   const target = options.config.build.target === 'dir' ? DIR_TARGET : options.config.build.target;
   try {
     await build({
@@ -62,6 +61,11 @@ export async function packageApp(options: PackageOptions): Promise<string> {
     const detail = error instanceof Error ? error.message : String(error);
     throw new BuildError(`electron-builder failed: ${detail}`, { cause: error });
   }
+}
+
+/** Runs electron-builder and returns the absolute path of the produced executable. */
+export async function packageApp(options: PackageOptions): Promise<string> {
+  await runElectronBuilder(options);
   const executable = path.join(
     options.outputDir,
     unpackedDirectoryName(),

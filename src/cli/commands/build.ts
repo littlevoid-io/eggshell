@@ -28,25 +28,41 @@ function packageNameOf(appDir: string): string {
   );
 }
 
-async function buildApp(app: LoadedApp): Promise<{ executablePath: string; manifestPath: string }> {
-  const version = app.config.version ?? readConsumerVersion(app.appDir) ?? '0.0.0';
-  const stageDir = path.join(app.paths.stateDir, 'package');
-  const outputDir = path.resolve(app.appDir, app.config.build.output);
-  terminalLogger.info('Staging app', { stageDir });
-  const packageRoot = path.resolve(path.dirname(shellMainPath()), '..', '..');
+interface BuildPlan {
+  readonly app: LoadedApp;
+  readonly version: string;
+  readonly stageDir: string;
+  readonly outputDir: string;
+}
+
+function planBuild(app: LoadedApp): BuildPlan {
+  return {
+    app,
+    version: app.config.version ?? readConsumerVersion(app.appDir) ?? '0.0.0',
+    stageDir: path.join(app.paths.stateDir, 'package'),
+    outputDir: path.resolve(app.appDir, app.config.build.output),
+  };
+}
+
+async function stage(plan: BuildPlan): Promise<void> {
+  terminalLogger.info('Staging app', { stageDir: plan.stageDir });
   const staged = await stageApp({
-    ...app,
-    version,
-    packageName: packageNameOf(app.appDir),
-    packageRoot,
-    stageDir,
+    ...plan.app,
+    version: plan.version,
+    packageName: packageNameOf(plan.app.appDir),
+    packageRoot: path.resolve(path.dirname(shellMainPath()), '..', '..'),
+    stageDir: plan.stageDir,
   });
   terminalLogger.info('Copied consumer files', { count: staged.copiedFiles.length });
+}
+
+async function packageStaged(plan: BuildPlan): Promise<string> {
+  const { app, outputDir, stageDir } = plan;
   terminalLogger.info('Packaging with electron-builder', {
     outputDir,
     target: app.config.build.target,
   });
-  const executablePath = await packageApp({
+  return packageApp({
     appDir: app.appDir,
     config: app.config,
     stageDir,
@@ -54,17 +70,26 @@ async function buildApp(app: LoadedApp): Promise<{ executablePath: string; manif
     electronVersion: electronVersion(),
     electronDist: path.dirname(electronBinary()),
   });
-  const manifestPath = writeManifest(path.dirname(executablePath), {
+}
+
+function writeLaunchManifest(plan: BuildPlan, executablePath: string): string {
+  return writeManifest(path.dirname(executablePath), {
     manifestVersion: 1,
-    appId: app.config.appId,
-    productName: app.config.productName,
-    version,
+    appId: plan.app.config.appId,
+    productName: plan.app.config.productName,
+    version: plan.version,
     executablePath,
     builtAt: new Date().toISOString(),
     platform: process.platform,
     arch: process.arch,
   });
-  return { executablePath, manifestPath };
+}
+
+async function buildApp(app: LoadedApp): Promise<{ executablePath: string; manifestPath: string }> {
+  const plan = planBuild(app);
+  await stage(plan);
+  const executablePath = await packageStaged(plan);
+  return { executablePath, manifestPath: writeLaunchManifest(plan, executablePath) };
 }
 
 export async function runBuild(flags: BuildFlags): Promise<number> {
