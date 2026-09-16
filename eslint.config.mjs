@@ -44,7 +44,7 @@ const sizeLimits = {
 };
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'release/**', 'ui/**/dist/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'release/**', 'ui/**'] },
 
   // Root tooling files: no tsconfig project.
   {

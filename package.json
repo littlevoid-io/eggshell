@@ -24,8 +24,14 @@
     "LICENSE",
     "README.md"
   ],
+  "workspaces": [
+    "ui/dashboard"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "npm run build:lib && npm run build:ui",
+    "build:lib": "tsc -p tsconfig.build.json",
+    "build:ui": "npm run build -w ui/dashboard",
+    "dev:ui": "npm run dev -w ui/dashboard",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
