@@ -33,9 +33,11 @@ function slugOf(appDir: string): string {
   );
 }
 
-/** eggshell is unpublished, so the dependency points at this package on disk. */
+/** A normal semver range on this package's own version; until publish, `npm link eggshell` satisfies it. */
 function eggshellDependency(): string {
-  return `file:${path.resolve(import.meta.dirname, '..', '..', '..')}`;
+  const manifestPath = path.resolve(import.meta.dirname, '..', '..', '..', 'package.json');
+  const { version } = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { version: string };
+  return `^${version}`;
 }
 
 function writeIfAbsent(filePath: string, content: string): void {

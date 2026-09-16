@@ -6,11 +6,21 @@ Docs: [architecture](docs/architecture.md), [provenance and test checklist](docs
 
 ## Quick start
 
+Until eggshell is published, link the local checkout once:
+
 ```sh
-npx eggshell init        # writes eggshell.config.ts, package scripts, .gitignore, public/index.html
-npm install
+cd <eggshell checkout> && npm install && npm run build && npm link
+```
+
+Then in the app repo:
+
+```sh
+npm link eggshell        # symlinks node_modules/eggshell to the checkout
+eggshell init            # writes eggshell.config.ts, package scripts, .gitignore, public/index.html
 npm run dev
 ```
+
+`init` records `eggshell` as a normal semver dev dependency. Do not run `npm install` in the app repo before eggshell is published: the registry has an unrelated package under this name. Rebuilding the checkout (`npm run build`) is picked up by the link immediately.
 
 `eggshell.config.ts`:
 
