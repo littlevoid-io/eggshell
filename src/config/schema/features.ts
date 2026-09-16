@@ -130,3 +130,19 @@ export const dashboardSchema = z
     logBufferSize: positiveInt('dashboard.logBufferSize').default(500),
   })
   .strict();
+
+export const soakSchema = z
+  .object({
+    enabled: disabledByDefault,
+    seed: z.number().int('soak.seed must be an integer').optional(),
+    intervalMs: positiveIntMs('soak.intervalMs').default(1000),
+    actions: z
+      .array(z.enum(['click', 'move', 'key', 'scroll']))
+      .min(1)
+      .default(['click', 'move', 'key', 'scroll']),
+    windows: z.array(nonEmptyString('soak.windows[]')).optional(),
+    maxActions: positiveInt('soak.maxActions').optional(),
+    /** Report file, relative to userData. */
+    reportPath: nonEmptyString('soak.reportPath').default('soak-report.json'),
+  })
+  .strict();

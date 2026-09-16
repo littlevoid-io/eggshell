@@ -72,5 +72,36 @@ describe('dashboard status', () => {
     expect(status.overlays.companion.visible).toBe(true);
     expect(status.memory.rss).toBeGreaterThan(0);
     expect(status.uptimeSeconds).toBeGreaterThanOrEqual(0);
+    expect(status.soak).toBeUndefined();
+  });
+
+  it('includes soak state when source getter is provided', () => {
+    const soakState = {
+      running: true,
+      seed: 42,
+      actionCount: 10,
+      crashCount: 0,
+      errorCount: 1,
+    };
+    const status = buildStatus({
+      resolved: {
+        config: { appId: 'com.test.app', productName: 'Test Exhibit' },
+      } as unknown as ResolvedApp,
+      windows: [],
+      displays: () => [],
+      processes: () => [],
+      offline: {
+        status: () => ({
+          isOnline: true,
+          isShowing: false,
+          isForcedShow: false,
+          isDismissedByUser: false,
+          offlineStart: null,
+        }),
+      } as unknown as OfflineOverlay,
+      companion: { visible: false } as unknown as CompanionOverlay,
+      soak: () => soakState,
+    });
+    expect(status.soak).toEqual(soakState);
   });
 });

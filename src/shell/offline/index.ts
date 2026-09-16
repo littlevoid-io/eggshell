@@ -5,7 +5,7 @@ import type { Logger } from '../../logging/logger.js';
 import type { IpcRouter } from '../ipc.js';
 import type { OverlayView } from '../overlay-view.js';
 import { createOverlaySet, type OverlaySet } from '../overlays/overlay-set.js';
-import { selectOverlayWindows } from '../overlays/targets.js';
+import { selectTargetWindows } from '../overlays/targets.js';
 import type { ManagedWindow } from '../windows/create.js';
 import type { ConnectivityProbe } from './probe.js';
 import { OfflineStateMachine, type OfflineState } from './state.js';
@@ -99,7 +99,7 @@ function startPolling(options: PollerOptions): () => void {
 export function createOfflineOverlay(options: OfflineOverlayOptions): OfflineOverlay {
   const { config, windows, attach, probe, router, clock, logger } = options;
   if (!config.enabled) return createNoopOfflineOverlay();
-  const targetWindows = selectOverlayWindows(windows, config.windows, logger);
+  const targetWindows = selectTargetWindows(windows, config.windows, logger);
   const overlaySet = createOverlaySet(targetWindows, attach);
   const state = new OfflineStateMachine(config.timeoutMs);
   const apply = (changed: boolean) => applyStateChange(changed, state, overlaySet, logger);

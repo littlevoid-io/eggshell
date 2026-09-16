@@ -6,7 +6,7 @@ import type { Logger } from '../../logging/logger.js';
 import type { IpcRouter } from '../ipc.js';
 import type { OverlayView } from '../overlay-view.js';
 import { createOverlaySet } from '../overlays/overlay-set.js';
-import { selectOverlayWindows } from '../overlays/targets.js';
+import { selectTargetWindows } from '../overlays/targets.js';
 import type { ManagedWindow } from '../windows/create.js';
 import { buildCompanionUrl } from './network.js';
 import { qrDataUrl } from './qr.js';
@@ -87,7 +87,7 @@ export function createCompanionOverlay(options: CompanionOverlayOptions): Compan
   const { config, resolved, windows, attach, router, openFolder, logger } = options;
   if (!config.enabled) return createNoopCompanionOverlay();
 
-  const targetWindows = selectOverlayWindows(windows, config.windows, logger);
+  const targetWindows = selectTargetWindows(windows, config.windows, logger);
   const overlaySet = createOverlaySet(targetWindows, attach);
   const url = buildCompanionUrl({ url: config.url, port: config.port, path: config.path });
   const logDir = path.resolve(resolved.userData, resolved.config.logging.file.directory);

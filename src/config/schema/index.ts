@@ -13,6 +13,7 @@ import {
   keybindingsSchema,
   loggingConfigSchema,
   offlineSchema,
+  soakSchema,
 } from './features.js';
 
 export { boundsSchema } from './primitives.js';
@@ -69,6 +70,7 @@ export const shellConfigSchema = z
     offline: offlineSchema.default(defaultsOf(offlineSchema)),
     companion: companionSchema.default(defaultsOf(companionSchema)),
     dashboard: dashboardSchema.default(defaultsOf(dashboardSchema)),
+    soak: soakSchema.default(defaultsOf(soakSchema)),
     deploymentOverridePath: nonEmptyString('deploymentOverridePath').optional(),
   })
   .strict()

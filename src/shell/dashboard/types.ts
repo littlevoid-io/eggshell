@@ -2,6 +2,7 @@ import type { Bounds } from '../../config/types.js';
 import type { DisplaySnapshot } from '../../layout/types.js';
 import type { ProcessStatus } from '../../process/supervisor.js';
 import type { OfflineState } from '../offline/state.js';
+import type { SoakState } from '../soak/types.js';
 
 export interface WindowSummary {
   readonly id: string;
@@ -28,6 +29,7 @@ export interface DashboardStatus {
   readonly windows: readonly WindowSummary[];
   readonly processes: readonly ProcessStatus[];
   readonly overlays: OverlayStatus;
+  readonly soak?: SoakState | undefined;
 }
 
 export interface DashboardActions {

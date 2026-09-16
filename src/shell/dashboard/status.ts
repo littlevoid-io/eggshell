@@ -3,6 +3,7 @@ import type { DisplaySnapshot } from '../../layout/types.js';
 import type { ProcessStatus } from '../../process/supervisor.js';
 import type { CompanionOverlay } from '../companion/index.js';
 import type { OfflineOverlay } from '../offline/index.js';
+import type { SoakState } from '../soak/types.js';
 import type { ManagedWindow } from '../windows/create.js';
 import type { DashboardStatus, WindowSummary } from './types.js';
 
@@ -13,6 +14,7 @@ export interface StatusSources {
   readonly processes: () => readonly ProcessStatus[];
   readonly offline: OfflineOverlay;
   readonly companion: CompanionOverlay;
+  readonly soak?: (() => SoakState | undefined) | undefined;
 }
 
 function summarizeWindow(managed: ManagedWindow): WindowSummary {
@@ -33,17 +35,24 @@ function summarizeWindow(managed: ManagedWindow): WindowSummary {
   };
 }
 
-export function buildStatus(sources: StatusSources): DashboardStatus {
+function summarizeRuntime() {
   const memory = process.memoryUsage();
   return {
-    appId: sources.resolved.config.appId,
-    productName: sources.resolved.config.productName,
-    version: sources.resolved.config.version,
-    isDev: sources.resolved.isDev,
     platform: process.platform,
     arch: process.arch,
     uptimeSeconds: Math.floor(process.uptime()),
     memory: { rss: memory.rss, heapUsed: memory.heapUsed },
+  };
+}
+
+export function buildStatus(sources: StatusSources): DashboardStatus {
+  const soak = sources.soak?.();
+  return {
+    ...summarizeRuntime(),
+    appId: sources.resolved.config.appId,
+    productName: sources.resolved.config.productName,
+    version: sources.resolved.config.version,
+    isDev: sources.resolved.isDev,
     displays: sources.displays(),
     windows: sources.windows.map(summarizeWindow),
     processes: sources.processes(),
@@ -51,5 +60,6 @@ export function buildStatus(sources: StatusSources): DashboardStatus {
       offline: sources.offline.status(),
       companion: { visible: sources.companion.visible },
     },
+    ...(soak !== undefined ? { soak } : {}),
   };
 }

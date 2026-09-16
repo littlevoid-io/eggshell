@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BrowserWindow } from 'electron';
 import type { Logger } from '../../logging/logger.js';
 import type { ManagedWindow } from '../windows/create.js';
-import { selectOverlayWindows } from './targets.js';
+import { selectTargetWindows } from './targets.js';
 
 function createMockLogger(): Logger {
   return {
@@ -17,11 +17,11 @@ function createMockWindow(id: string): ManagedWindow {
   return { id, window: {} as BrowserWindow };
 }
 
-describe('selectOverlayWindows', () => {
+describe('selectTargetWindows', () => {
   it('returns all windows when ids is undefined', () => {
     const windows = [createMockWindow('main'), createMockWindow('secondary')];
     const logger = createMockLogger();
-    const result = selectOverlayWindows(windows, undefined, logger);
+    const result = selectTargetWindows(windows, undefined, logger);
     expect(result).toEqual(windows);
     expect(logger.warn).not.toHaveBeenCalled();
   });
@@ -30,7 +30,7 @@ describe('selectOverlayWindows', () => {
     const main = createMockWindow('main');
     const secondary = createMockWindow('secondary');
     const logger = createMockLogger();
-    const result = selectOverlayWindows([main, secondary], ['secondary'], logger);
+    const result = selectTargetWindows([main, secondary], ['secondary'], logger);
     expect(result).toEqual([secondary]);
     expect(logger.warn).not.toHaveBeenCalled();
   });
@@ -38,9 +38,9 @@ describe('selectOverlayWindows', () => {
   it('warns and skips unknown window ids', () => {
     const main = createMockWindow('main');
     const logger = createMockLogger();
-    const result = selectOverlayWindows([main], ['main', 'unknown'], logger);
+    const result = selectTargetWindows([main], ['main', 'unknown'], logger);
     expect(result).toEqual([main]);
-    expect(logger.warn).toHaveBeenCalledWith('Overlay window id "unknown" not found', {
+    expect(logger.warn).toHaveBeenCalledWith('Target window id "unknown" not found', {
       windowId: 'unknown',
     });
   });

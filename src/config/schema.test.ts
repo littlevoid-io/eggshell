@@ -144,6 +144,15 @@ function buildMaximalConfig() {
       allowQuit: true,
       logBufferSize: 500,
     },
+    soak: {
+      enabled: true,
+      seed: 42,
+      intervalMs: 500,
+      actions: ['click', 'move', 'key', 'scroll'],
+      windows: ['main'],
+      maxActions: 100,
+      reportPath: 'custom-soak-report.json',
+    },
     deploymentOverridePath: 'C:/ProgramData/eggshell/eggshell.deployment.json',
   };
 }
@@ -225,6 +234,12 @@ describe('shellConfigSchema — minimal config and defaults', () => {
       allowRestart: true,
       allowQuit: true,
       logBufferSize: 500,
+    });
+    expect(parsed.soak).toEqual({
+      enabled: false,
+      intervalMs: 1000,
+      actions: ['click', 'move', 'key', 'scroll'],
+      reportPath: 'soak-report.json',
     });
     expect(parsed.display.supervisor).toEqual({
       debounceMs: 300,

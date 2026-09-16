@@ -14,6 +14,7 @@ import type {
   offlineSchema,
   processConfigSchema,
   shellConfigSchema,
+  soakSchema,
   windowConfigSchema,
 } from './schema/index.js';
 
@@ -32,4 +33,6 @@ export type ChromeExtensions = z.infer<typeof chromeExtensionsSchema>;
 export type OfflineConfig = z.infer<typeof offlineSchema>;
 export type CompanionConfig = z.infer<typeof companionSchema>;
 export type DashboardConfig = z.infer<typeof dashboardSchema>;
+export type SoakConfig = z.infer<typeof soakSchema>;
+export type SoakAction = SoakConfig['actions'][number];
 export type ShellConfig = z.infer<typeof shellConfigSchema>;

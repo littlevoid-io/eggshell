@@ -1,7 +1,7 @@
 import type { Logger } from '../../logging/logger.js';
 import type { ManagedWindow } from '../windows/create.js';
 
-export function selectOverlayWindows(
+export function selectTargetWindows(
   windows: readonly ManagedWindow[],
   ids: readonly string[] | undefined,
   logger: Logger
@@ -16,8 +16,10 @@ export function selectOverlayWindows(
     if (window !== undefined) {
       selected.push(window);
     } else {
-      logger.warn(`Overlay window id "${id}" not found`, { windowId: id });
+      logger.warn(`Target window id "${id}" not found`, { windowId: id });
     }
   }
   return selected;
 }
+
+export const selectOverlayWindows = selectTargetWindows;
