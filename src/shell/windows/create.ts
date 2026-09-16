@@ -6,6 +6,7 @@ import { resolveLayout } from '../../layout/resolve.js';
 import type { LayoutProblem, WindowPlacement } from '../../layout/types.js';
 import type { Logger } from '../../logging/logger.js';
 import { toDisplaySnapshots } from './displays.js';
+import { lockKiosk } from './hardening.js';
 import { toWindowUrl } from './url.js';
 
 export interface ManagedWindow {
@@ -48,18 +49,14 @@ function windowOptions(
   };
 }
 
-function lockKiosk(window: BrowserWindow): void {
-  window.setAlwaysOnTop(true, 'screen-saver');
-  window.webContents.on('context-menu', event => event.preventDefault());
-}
-
 function openWindow(
   placement: WindowPlacement,
   config: WindowConfig,
-  resolved: ResolvedApp
+  resolved: ResolvedApp,
+  logger: Logger
 ): BrowserWindow {
   const window = new BrowserWindow(windowOptions(placement, config, resolved));
-  if (placement.mode === 'kiosk') lockKiosk(window);
+  if (placement.mode === 'kiosk') lockKiosk(window, resolved.isDev, logger);
   if (config.showWhenReady) window.once('ready-to-show', () => window.show());
   void window.loadURL(toWindowUrl(config.url, resolved.appDir));
   return window;
@@ -82,6 +79,8 @@ export function createWindows({ resolved, screen, logger }: CreateWindowsOptions
   return layout.placements.flatMap(placement => {
     const windowConfig = config.windows.find(window => window.id === placement.windowId);
     if (!windowConfig) return [];
-    return [{ id: placement.windowId, window: openWindow(placement, windowConfig, resolved) }];
+    return [
+      { id: placement.windowId, window: openWindow(placement, windowConfig, resolved, logger) },
+    ];
   });
 }

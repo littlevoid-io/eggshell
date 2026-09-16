@@ -21,22 +21,22 @@ Status: `ported` (behavior carried over) | `rewritten` (new implementation, same
 
 ## Windows and layout
 
-| Original                                       | eggshell                             | Status    | Test                                                         |
-| ---------------------------------------------- | ------------------------------------ | --------- | ------------------------------------------------------------ |
-| `WindowManager` create/lock/focus              | `src/shell/windows/create.ts`        | rewritten | Kiosk window opens, always-on-top, no context menu           |
-| `layoutRole` touch/primary/largest/span-all    | `windows[].target` kinds             | rewritten | Each target kind places on the expected display              |
-| `windowsTouchQuery` (PowerShell probe)         | `src/layout/probes/windows-touch.ts` | rewritten | Touch display resolves; hang resolves to `[]` within timeout |
-| `layoutRecovery` (re-apply on display change)  | `src/layout/supervisor.ts`           | rewritten | Unplug/replug monitor: layout re-applies once, no loop       |
-| Periodic layout check (setInterval)            | Topology signature dedup             | dropped   | Caused retry-forever; replaced by event + attempt cap        |
-| `compatibility` GPU/vsync/spanning checks      | `eggshell doctor`                    | rewritten | Doctor reports GPU list and spanning warnings                |
-| `before-input-event` keybindings               | `keybindings` section                | todo      | `ctrl+q` quits; `shift+c` toggles cursor                     |
-| `keybindings.json` defaults                    | Schema defaults                      | todo      | Absent section still quits on `ctrl+q`                       |
-| Cursor toggle (`applyCursorToWindows`)         | `cursor` section                     | todo      | Cursor hidden at start when `cursor.visible: false`          |
-| Blackout window (`app:blackout:show/hide` IPC) | `src/shell/blackout`                 | todo      | IPC fades to black and back                                  |
-| Window icon (`iconPath`, `public/ui/icon.png`) | `windows[].icon`, `icon` section     | todo      | Taskbar and exe show the app icon                            |
-| `state-sync:*` IPC broadcast between windows   | `src/shell/ipc`                      | todo      | Two windows exchange state via preload API                   |
-| `app:quit` IPC                                 | `src/shell/ipc`                      | todo      | Renderer can request quit                                    |
-| Renderer console → main log                    | `src/shell/windows`                  | todo      | `console.error` in page appears in log file                  |
+| Original                                       | eggshell                                                            | Status    | Test                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------- | --------- | ------------------------------------------------------------ |
+| `WindowManager` create/lock/focus              | `src/shell/windows/create.ts`                                       | rewritten | Kiosk window opens, always-on-top, no context menu           |
+| `layoutRole` touch/primary/largest/span-all    | `windows[].target` kinds                                            | rewritten | Each target kind places on the expected display              |
+| `windowsTouchQuery` (PowerShell probe)         | `src/layout/probes/windows-touch.ts`                                | rewritten | Touch display resolves; hang resolves to `[]` within timeout |
+| `layoutRecovery` (re-apply on display change)  | `src/layout/supervisor.ts` wired by `src/shell/windows/topology.ts` | rewritten | Unplug/replug monitor: layout re-applies once, no loop       |
+| Periodic layout check (setInterval)            | Topology signature dedup                                            | dropped   | Caused retry-forever; replaced by event + attempt cap        |
+| `compatibility` GPU/vsync/spanning checks      | `eggshell doctor`                                                   | rewritten | Doctor reports GPU list and spanning warnings                |
+| `before-input-event` keybindings               | `keybindings` section, `src/shell/keybindings.ts`                   | rewritten | `ctrl+q` quits; `shift+c` toggles cursor                     |
+| `keybindings.json` defaults                    | `keybindingsSchema` defaults                                        | ported    | Absent section still quits on `ctrl+q`                       |
+| Cursor toggle (`applyCursorToWindows`)         | `cursor` section, `src/shell/cursor.ts`                             | rewritten | Cursor hidden at start when `cursor.visible: false`          |
+| Blackout window (`app:blackout:show/hide` IPC) | `src/shell/blackout.ts` (IPC wiring todo)                           | ported    | IPC fades to black and back                                  |
+| Window icon (`iconPath`, `public/ui/icon.png`) | `windows[].icon`, `icon` section                                    | todo      | Taskbar and exe show the app icon                            |
+| `state-sync:*` IPC broadcast between windows   | `src/shell/ipc`                                                     | todo      | Two windows exchange state via preload API                   |
+| `app:quit` IPC                                 | `src/shell/ipc`                                                     | todo      | Renderer can request quit                                    |
+| Renderer console → main log                    | `src/shell/windows`                                                 | todo      | `console.error` in page appears in log file                  |
 
 ## Processes
 
