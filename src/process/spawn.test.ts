@@ -190,6 +190,19 @@ describe('spawnManaged', () => {
     });
   });
 
+  it('resolves cleanly with a signal when killed, instead of rejecting as a spawn failure', async () => {
+    const managed = spawnManaged({
+      id: 'killed-by-signal',
+      command: process.execPath,
+      args: ['-e', 'setInterval(() => {}, 1000)'],
+    });
+    managed.kill('SIGTERM');
+    const exit = await managed.exited;
+
+    expect(exit.code).toBeNull();
+    expect(exit.signal).toBe('SIGTERM');
+  });
+
   it('replays earlier lines to a subscriber that joins after they were printed', async () => {
     const managed = spawnManaged({
       id: 'late-subscriber',

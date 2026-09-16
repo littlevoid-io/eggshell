@@ -22,6 +22,7 @@ interface ExecaProcessResult {
   failed?: boolean | undefined;
   exitCode?: number | undefined;
   signal?: NodeJS.Signals | undefined;
+  isTerminated?: boolean | undefined;
   stderr?: unknown;
   shortMessage?: string | undefined;
 }
@@ -42,6 +43,7 @@ function checkSpawnFailure(
   command: string,
   logger: Logger
 ): void {
+  if (result.isTerminated) return;
   const isUnrecognized =
     result.exitCode === 1 &&
     typeof result.stderr === 'string' &&
