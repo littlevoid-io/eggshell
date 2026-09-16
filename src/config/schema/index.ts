@@ -7,9 +7,11 @@ import {
   browserPermissionsSchema,
   chromeExtensionsSchema,
   chromiumFlagsSchema,
+  companionSchema,
   cursorSchema,
   keybindingsSchema,
   loggingConfigSchema,
+  offlineSchema,
 } from './features.js';
 
 export { boundsSchema } from './primitives.js';
@@ -63,6 +65,8 @@ export const shellConfigSchema = z
     keybindings: keybindingsSchema.default(defaultsOf(keybindingsSchema)),
     cursor: cursorSchema.default(defaultsOf(cursorSchema)),
     chromeExtensions: chromeExtensionsSchema.default(defaultsOf(chromeExtensionsSchema)),
+    offline: offlineSchema.default(defaultsOf(offlineSchema)),
+    companion: companionSchema.default(defaultsOf(companionSchema)),
     deploymentOverridePath: nonEmptyString('deploymentOverridePath').optional(),
   })
   .strict()

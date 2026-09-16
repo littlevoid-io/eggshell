@@ -5,7 +5,9 @@ import {
   disabledByDefault,
   enabledByDefault,
   nonEmptyString,
+  portNumber,
   positiveInt,
+  positiveIntMs,
 } from './primitives.js';
 
 /** Chromium permission requests from the renderer (`getUserMedia`, notifications, ...). */
@@ -85,5 +87,31 @@ export const loggingConfigSchema = z
   .object({
     level: z.enum([...LOG_LEVELS]).default('info'),
     file: fileLoggingSchema.default(defaultsOf(fileLoggingSchema)),
+  })
+  .strict();
+
+export const offlineSchema = z
+  .object({
+    enabled: enabledByDefault,
+    /** Offline for at least this long before the overlay shows. */
+    timeoutMs: positiveIntMs('offline.timeoutMs').default(30_000),
+    pollIntervalMs: positiveIntMs('offline.pollIntervalMs').default(5_000),
+    /** Optional HTTP(S) URL probed with HEAD after the OS reports online. */
+    pingUrl: z.string().url('offline.pingUrl must be a URL').optional(),
+    /** Window ids that get the overlay. Default: every window. */
+    windows: z.array(nonEmptyString('offline.windows[]')).optional(),
+  })
+  .strict();
+
+export const companionSchema = z
+  .object({
+    enabled: disabledByDefault,
+    /** Full URL to encode. Default: http://<LAN IPv4>:<port><path>. */
+    url: z.string().url('companion.url must be a URL').optional(),
+    port: portNumber('companion.port').default(3005),
+    path: nonEmptyString('companion.path').default('/'),
+    title: nonEmptyString('companion.title').optional(),
+    description: nonEmptyString('companion.description').optional(),
+    windows: z.array(nonEmptyString('companion.windows[]')).optional(),
   })
   .strict();

@@ -20,7 +20,7 @@ export interface CreateWindowsOptions {
   readonly logger: Logger;
 }
 
-function preloadPath(): string {
+export function shellPreloadPath(): string {
   return path.join(import.meta.dirname, '..', 'preload.cjs');
 }
 
@@ -39,7 +39,7 @@ function windowOptions(
     ...(config.backgroundColor ? { backgroundColor: config.backgroundColor } : {}),
     ...(icon ? { icon: path.resolve(resolved.appDir, icon) } : {}),
     webPreferences: {
-      preload: preloadPath(),
+      preload: shellPreloadPath(),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,

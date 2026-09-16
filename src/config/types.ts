@@ -4,11 +4,13 @@ import type {
   browserPermissionsSchema,
   chromeExtensionsSchema,
   chromiumFlagsSchema,
+  companionSchema,
   cursorSchema,
   displayPolicySchema,
   displayTargetSchema,
   keybindingsSchema,
   loggingConfigSchema,
+  offlineSchema,
   processConfigSchema,
   shellConfigSchema,
   windowConfigSchema,
@@ -26,4 +28,6 @@ export type Keybindings = z.infer<typeof keybindingsSchema>;
 export type Keybinding = Keybindings['bindings'][number];
 export type CursorConfig = z.infer<typeof cursorSchema>;
 export type ChromeExtensions = z.infer<typeof chromeExtensionsSchema>;
+export type OfflineConfig = z.infer<typeof offlineSchema>;
+export type CompanionConfig = z.infer<typeof companionSchema>;
 export type ShellConfig = z.infer<typeof shellConfigSchema>;

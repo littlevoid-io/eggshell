@@ -119,6 +119,22 @@ function buildMaximalConfig() {
     keybindings: { enabled: true, bindings: [{ key: 'ctrl+q', command: 'app.quit' }] },
     cursor: { visible: false },
     chromeExtensions: { enabled: true, paths: ['extensions/react-devtools'] },
+    offline: {
+      enabled: true,
+      timeoutMs: 10_000,
+      pollIntervalMs: 2_000,
+      pingUrl: 'https://example.com/health',
+      windows: ['main'],
+    },
+    companion: {
+      enabled: true,
+      url: 'http://192.168.1.50:3005/',
+      port: 3005,
+      path: '/',
+      title: 'Companion Title',
+      description: 'Companion Description',
+      windows: ['main'],
+    },
     deploymentOverridePath: 'C:/ProgramData/eggshell/eggshell.deployment.json',
   };
 }
@@ -183,6 +199,16 @@ describe('shellConfigSchema — minimal config and defaults', () => {
     expect(parsed.keybindings.bindings).toHaveLength(5);
     expect(parsed.cursor).toEqual({ visible: 'auto' });
     expect(parsed.chromeExtensions).toEqual({ enabled: false, paths: [] });
+    expect(parsed.offline).toEqual({
+      enabled: true,
+      timeoutMs: 30_000,
+      pollIntervalMs: 5_000,
+    });
+    expect(parsed.companion).toEqual({
+      enabled: false,
+      port: 3005,
+      path: '/',
+    });
     expect(parsed.display.supervisor).toEqual({
       debounceMs: 300,
       maxAttemptsPerTopology: 5,

@@ -58,23 +58,23 @@ Status: `ported` (behavior carried over) | `rewritten` (new implementation, same
 
 ## Features
 
-| Original                                                           | eggshell                           | Status    | Test                                                                        |
-| ------------------------------------------------------------------ | ---------------------------------- | --------- | --------------------------------------------------------------------------- |
-| Offline overlay (`is-online`, React UI)                            | `offline` section, static HTML     | rewritten | Disable network: overlay appears; re-enable: overlay hides                  |
-| Companion overlay (QR to LAN URL)                                  | `companion` section                | rewritten | Overlay QR scans to reachable URL                                           |
-| Soak testing (gremlins.js random UI interaction)                   | `soak` section                     | rewritten | Random taps/keys run for configured duration; report written                |
-| Dashboard server (express, port 3005)                              | `dashboard` section                | rewritten | `GET /status` returns windows and processes                                 |
-| Dashboard `GET /logs-stream` (SSE)                                 | `dashboard`                        | todo      | Browser log console streams new lines                                       |
-| Dashboard `POST /reload-windows`                                   | `dashboard`                        | rewritten | Windows reload                                                              |
-| Dashboard `POST /focus-windows`                                    | `dashboard`                        | rewritten | Windows come to front                                                       |
-| Dashboard `POST /recalculate-layout`                               | `dashboard`                        | todo      | Layout re-applies                                                           |
-| Dashboard `POST /toggle-offline`                                   | `dashboard`                        | todo      | Overlay toggles                                                             |
-| Dashboard `POST /toggle-companion`                                 | `dashboard`                        | todo      | Overlay toggles                                                             |
-| Dashboard `POST /restart-app`                                      | `dashboard`                        | rewritten | App relaunches                                                              |
-| Dashboard React UI (LogConsole, DisplayLayout, ConfirmationDialog) | Prebuilt UI in `dist/dashboard-ui` | todo      | UI loads at `http://<host>:<port>/`; confirm dialogs on destructive actions |
-| `printDashboardQR` to terminal                                     | `src/cli/output`                   | todo      | QR printed once dashboard is up; scans to dashboard URL                     |
-| `ExtensionManager` (unpacked Chrome extensions)                    | `chromeExtensions` section         | todo      | Extension listed in `chrome://extensions`                                   |
-| Vite dev server for dashboard/offline UIs                          | Prebuilt assets                    | dropped   | Nested builds at consumer dev time removed                                  |
+| Original                                                           | eggshell                                                                            | Status    | Test                                                                        |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | --------- | --------------------------------------------------------------------------- |
+| Offline overlay (`is-online`, React UI)                            | `offline` section, `src/shell/offline/`, `assets/offline.html` as a WebContentsView | rewritten | Disable network: overlay appears; re-enable: overlay hides                  |
+| Companion overlay (QR to LAN URL)                                  | `companion` section, `src/shell/companion/`, `assets/companion.html`                | rewritten | Overlay QR scans to reachable URL                                           |
+| Soak testing (gremlins.js random UI interaction)                   | `soak` section                                                                      | rewritten | Random taps/keys run for configured duration; report written                |
+| Dashboard server (express, port 3005)                              | `dashboard` section                                                                 | rewritten | `GET /status` returns windows and processes                                 |
+| Dashboard `GET /logs-stream` (SSE)                                 | `dashboard`                                                                         | todo      | Browser log console streams new lines                                       |
+| Dashboard `POST /reload-windows`                                   | `dashboard`                                                                         | rewritten | Windows reload                                                              |
+| Dashboard `POST /focus-windows`                                    | `dashboard`                                                                         | rewritten | Windows come to front                                                       |
+| Dashboard `POST /recalculate-layout`                               | `dashboard`                                                                         | todo      | Layout re-applies                                                           |
+| Dashboard `POST /toggle-offline`                                   | `dashboard`                                                                         | todo      | Overlay toggles                                                             |
+| Dashboard `POST /toggle-companion`                                 | `dashboard`                                                                         | todo      | Overlay toggles                                                             |
+| Dashboard `POST /restart-app`                                      | `dashboard`                                                                         | rewritten | App relaunches                                                              |
+| Dashboard React UI (LogConsole, DisplayLayout, ConfirmationDialog) | Prebuilt UI in `dist/dashboard-ui`                                                  | todo      | UI loads at `http://<host>:<port>/`; confirm dialogs on destructive actions |
+| `printDashboardQR` to terminal                                     | `src/cli/output`                                                                    | todo      | QR printed once dashboard is up; scans to dashboard URL                     |
+| `ExtensionManager` (unpacked Chrome extensions)                    | `chromeExtensions` section                                                          | todo      | Extension listed in `chrome://extensions`                                   |
+| Vite dev server for dashboard/offline UIs                          | Prebuilt assets                                                                     | dropped   | Nested builds at consumer dev time removed                                  |
 
 ## eggshell-only additions
 
