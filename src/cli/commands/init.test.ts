@@ -24,11 +24,20 @@ describe('runInit', () => {
     await runInit({ projectRoot: appDir, appId: 'com.example.demo', productName: 'Demo' });
     expect(read('eggshell.config.ts')).toContain('"com.example.demo"');
     expect(read('public/index.html')).toContain('Demo');
+    expect(read('eggshell.config.ts')).toContain(`url: "public/index.html"`);
     expect(readJson('package.json')).toMatchObject({
       type: 'module',
       scripts: { dev: 'eggshell dev', doctor: 'eggshell doctor' },
+      devDependencies: { '@littlevoid/eggshell': expect.stringMatching(/^\^\d+\.\d+\.\d+$/) },
     });
     expect(read('.gitignore')).toContain('.eggshell/');
+  });
+
+  it('points the window at an existing root index.html and adds no placeholder', async () => {
+    fs.writeFileSync(path.join(appDir, 'index.html'), '<h1>existing</h1>');
+    await runInit({ projectRoot: appDir });
+    expect(read('eggshell.config.ts')).toContain(`url: "index.html"`);
+    expect(fs.existsSync(path.join(appDir, 'public'))).toBe(false);
   });
 
   it('merges into an existing package.json without overwriting existing keys', async () => {

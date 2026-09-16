@@ -33,11 +33,14 @@ function slugOf(appDir: string): string {
   );
 }
 
-/** A normal semver range on this package's own version; until publish, `npm link eggshell` satisfies it. */
-function eggshellDependency(): string {
+/** This package's name and a semver range on its version; until publish, `npm link` satisfies it. */
+function eggshellDependency(): Record<string, string> {
   const manifestPath = path.resolve(import.meta.dirname, '..', '..', '..', 'package.json');
-  const { version } = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { version: string };
-  return `^${version}`;
+  const { name, version } = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+    name: string;
+    version: string;
+  };
+  return { [name]: `^${version}` };
 }
 
 function writeIfAbsent(filePath: string, content: string): void {
@@ -76,7 +79,7 @@ async function mergePackage(appDir: string, slug: string): Promise<void> {
   const scripts = { ...manifest.scripts };
   const devDependencies = { ...manifest.devDependencies };
   mergeEntries(scripts, SCRIPTS, 'scripts');
-  mergeEntries(devDependencies, { eggshell: eggshellDependency() }, 'devDependencies');
+  mergeEntries(devDependencies, eggshellDependency(), 'devDependencies');
   await writePackage(appDir, { ...manifest, scripts, devDependencies }, { normalize: false });
   terminalLogger.info(`updated ${path.join(appDir, 'package.json')}`);
 }
@@ -92,18 +95,29 @@ function appendGitignore(appDir: string): void {
   terminalLogger.info(`updated ${file}`);
 }
 
+/** Reuses an existing page when there is one; only an empty directory gets a placeholder page. */
+function chooseStartPage(appDir: string, productName: string): string {
+  const candidates = ['index.html', 'public/index.html'];
+  const existing = candidates.find(candidate => fs.existsSync(path.join(appDir, candidate)));
+  if (existing) return existing;
+  if (fs.readdirSync(appDir).length === 0) {
+    writeIfAbsent(path.join(appDir, 'public', 'index.html'), INDEX_HTML_TEMPLATE(productName));
+  }
+  return 'public/index.html';
+}
+
 export async function runInit(flags: InitFlags): Promise<number> {
   const appDir = path.resolve(flags.projectRoot ?? process.cwd());
   const slug = slugOf(appDir);
   const appId = flags.appId ?? `com.example.${slug}`;
   const productName = flags.productName ?? path.basename(appDir);
   fs.mkdirSync(appDir, { recursive: true });
-  writeIfAbsent(path.join(appDir, 'eggshell.config.ts'), CONFIG_TEMPLATE(appId, productName));
-  if (!fs.existsSync(path.join(appDir, 'public'))) {
-    writeIfAbsent(path.join(appDir, 'public', 'index.html'), INDEX_HTML_TEMPLATE(productName));
-  }
+  const url = chooseStartPage(appDir, productName);
+  writeIfAbsent(path.join(appDir, 'eggshell.config.ts'), CONFIG_TEMPLATE(appId, productName, url));
   await mergePackage(appDir, slug);
   appendGitignore(appDir);
-  terminalLogger.info('Next: npm install, then npm run dev');
+  terminalLogger.info(
+    `Next: set windows[0].url in eggshell.config.ts if "${url}" is not your page, then npm run dev`
+  );
   return 0;
 }

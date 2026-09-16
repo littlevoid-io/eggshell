@@ -15,17 +15,17 @@ cd <eggshell checkout> && npm install && npm run build && npm link
 Then in the app repo:
 
 ```sh
-npm link eggshell        # symlinks node_modules/eggshell to the checkout
+npm link @littlevoid/eggshell   # symlinks node_modules/@littlevoid/eggshell to the checkout
 eggshell init            # writes eggshell.config.ts, package scripts, .gitignore, public/index.html
 npm run dev
 ```
 
-`init` records `eggshell` as a normal semver dev dependency. Do not run `npm install` in the app repo before eggshell is published: the registry has an unrelated package under this name. Rebuilding the checkout (`npm run build`) is picked up by the link immediately.
+`init` records `@littlevoid/eggshell` as a normal semver dev dependency. Do not run `npm install` in the app repo before it is published. Rebuilding the checkout (`npm run build`) is picked up by the link immediately.
 
 `eggshell.config.ts`:
 
 ```ts
-import { defineConfig } from 'eggshell';
+import { defineConfig } from '@littlevoid/eggshell';
 
 export default defineConfig(({ appDir, isDev }) => ({
   appId: 'com.example.mural',
