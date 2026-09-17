@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readPackage } from 'read-pkg';
-import { writePackage } from 'write-pkg';
+import { writeJsonFile } from 'write-json-file';
 import { terminalLogger } from '../output.js';
 import { CONFIG_TEMPLATE, INDEX_HTML_TEMPLATE, GITIGNORE_LINES } from '../templates.js';
 
@@ -80,8 +80,13 @@ async function mergePackage(appDir: string, slug: string): Promise<void> {
   const devDependencies = { ...manifest.devDependencies };
   mergeEntries(scripts, SCRIPTS, 'scripts');
   mergeEntries(devDependencies, eggshellDependency(), 'devDependencies');
-  await writePackage(appDir, { ...manifest, scripts, devDependencies }, { normalize: false });
-  terminalLogger.info(`updated ${path.join(appDir, 'package.json')}`);
+  const manifestPath = path.join(appDir, 'package.json');
+  await writeJsonFile(
+    manifestPath,
+    { ...manifest, scripts, devDependencies },
+    { detectIndent: true, indent: 2 }
+  );
+  terminalLogger.info(`updated ${manifestPath}`);
 }
 
 function appendGitignore(appDir: string): void {

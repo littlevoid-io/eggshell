@@ -130,7 +130,7 @@ Hand-rolled code is limited to the layout resolver, topology signature, and the 
 | http                   | `express`                                                      |
 | deep merge             | `deepmerge` (arrays replace)                                   |
 | TS config load         | `tsx`                                                          |
-| package.json edit      | `read-pkg`, `write-pkg`                                        |
+| package.json edit      | `read-pkg`, `write-json-file`                                  |
 | per-app data directory | `env-paths`                                                    |
 | QR                     | `qrcode`                                                       |
 | validation             | `zod`                                                          |
