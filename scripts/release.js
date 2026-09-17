@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
-import { intro, isCancel, outro, select, spinner } from '@clack/prompts';
+import { intro, isCancel, outro, select, tasks } from '@clack/prompts';
 import chalk from 'chalk';
 import { execaSync } from 'execa';
+import { branchTasks, mergeTasks, syncTasks } from './release-tasks.js';
 
 function run(cmd, args) {
   try {
@@ -46,29 +47,6 @@ async function promptVersion(currentVersion) {
   return computeNextVersion(currentVersion, choice);
 }
 
-function executeReleaseGitFlow(nextVersion, branch) {
-  run('git', ['checkout', '-b', branch]);
-  run('npm', ['version', nextVersion, '--no-git-tag-version']);
-  run('git', ['add', 'package.json', 'package-lock.json']);
-  run('git', ['commit', '-m', `chore(release): v${nextVersion}`]);
-  run('git', ['checkout', 'main']);
-  run('git', ['merge', branch, '--no-edit']);
-  run('git', ['tag', `v${nextVersion}`]);
-  run('git', ['checkout', 'develop']);
-  run('git', ['merge', 'main', '--no-edit']);
-  run('git', ['push', 'origin', 'main']);
-  run('git', ['push', 'origin', 'develop']);
-  run('git', ['push', 'origin', '--tags']);
-}
-
-function cleanupBranch(branch) {
-  try {
-    run('git', ['branch', '-d', branch]);
-  } catch {
-    // Best-effort local branch cleanup
-  }
-}
-
 async function main() {
   intro(chalk.cyan('Eggshell Release Orchestrator'));
   try {
@@ -80,16 +58,15 @@ async function main() {
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
   const nextVersion = await promptVersion(pkg.version);
   const branch = `release/v${nextVersion}`;
-  const s = spinner();
-  s.start(`Executing Git Flow for v${nextVersion}...`);
   try {
-    executeReleaseGitFlow(nextVersion, branch);
-    cleanupBranch(branch);
-    s.stop(chalk.green(`v${nextVersion} merged and pushed to GitHub!`));
-    outro(chalk.green('Release flow completed. GitHub Actions will handle OIDC staged publish.'));
+    await tasks([
+      ...branchTasks(run, nextVersion, branch),
+      ...mergeTasks(run, nextVersion, branch),
+      ...syncTasks(run, branch),
+    ]);
+    outro(chalk.green(`v${nextVersion} released and pushed to GitHub!`));
   } catch (err) {
-    s.stop(chalk.red('Release failed.'));
-    console.error(chalk.red(err.message));
+    console.error(chalk.red(`Release failed: ${err.message}`));
     try {
       run('git', ['checkout', 'develop']);
     } catch {
