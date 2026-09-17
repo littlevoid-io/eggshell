@@ -39,10 +39,12 @@ export interface CompanionOverlayOptions {
   readonly logger: Logger;
 }
 
-function createNoopCompanionOverlay(): CompanionOverlay {
+function createNoopCompanionOverlay(logger: Logger): CompanionOverlay {
   return {
     views: [],
-    toggle: () => {},
+    toggle: () => {
+      logger.info('companion overlay is disabled in config');
+    },
     setShowing: () => {},
     get visible(): boolean {
       return false;
@@ -85,12 +87,16 @@ function createStatusProvider(
   };
 }
 
-function buildCompanionHandle(overlaySet: OverlaySet): CompanionOverlay {
+function buildCompanionHandle(overlaySet: OverlaySet, logger: Logger): CompanionOverlay {
   return {
     get views(): readonly OverlayView[] {
       return overlaySet.views;
     },
-    toggle: () => (overlaySet.visible ? overlaySet.hide() : overlaySet.show()),
+    toggle: () => {
+      const next = !overlaySet.visible;
+      logger.info(next ? 'companion overlay shown' : 'companion overlay hidden');
+      return next ? overlaySet.show() : overlaySet.hide();
+    },
     setShowing: showing => (showing ? overlaySet.show() : overlaySet.hide()),
     get visible(): boolean {
       return overlaySet.visible;
@@ -101,7 +107,7 @@ function buildCompanionHandle(overlaySet: OverlaySet): CompanionOverlay {
 
 export function createCompanionOverlay(options: CompanionOverlayOptions): CompanionOverlay {
   const { config, resolved, windows, attach, router, openFolder, logger } = options;
-  if (!config.enabled) return createNoopCompanionOverlay();
+  if (!config.enabled) return createNoopCompanionOverlay(logger);
 
   const targetWindows = selectTargetWindows(windows, config.windows, logger);
   const overlaySet = createOverlaySet(targetWindows, attach);
@@ -113,5 +119,5 @@ export function createCompanionOverlay(options: CompanionOverlayOptions): Compan
   router.handle('companion:dismiss', () => overlaySet.hide());
   router.handle('companion:open-logs', () => openFolder(logDir));
 
-  return buildCompanionHandle(overlaySet);
+  return buildCompanionHandle(overlaySet, logger);
 }

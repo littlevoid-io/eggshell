@@ -28,10 +28,12 @@ export interface OfflineOverlayOptions {
   readonly logger: Logger;
 }
 
-function createNoopOfflineOverlay(): OfflineOverlay {
+function createNoopOfflineOverlay(logger: Logger): OfflineOverlay {
   return {
     views: [],
-    toggle: () => {},
+    toggle: () => {
+      logger.info('offline overlay is disabled in config');
+    },
     setShowing: () => {},
     status: () => ({
       isOnline: true,
@@ -120,7 +122,7 @@ function buildOfflineHandle(
 
 export function createOfflineOverlay(options: OfflineOverlayOptions): OfflineOverlay {
   const { config, windows, attach, probe, router, clock, logger } = options;
-  if (!config.enabled) return createNoopOfflineOverlay();
+  if (!config.enabled) return createNoopOfflineOverlay(logger);
   const targetWindows = selectTargetWindows(windows, config.windows, logger);
   const overlaySet = createOverlaySet(targetWindows, attach);
   const state = new OfflineStateMachine(config.timeoutMs);

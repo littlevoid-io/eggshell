@@ -181,11 +181,13 @@ describe('createCompanionOverlay', () => {
     overlay.dispose();
   });
 
-  it('returns no-op overlay when config.enabled is false', () => {
+  it('returns no-op overlay and logs on toggle when config.enabled is false', () => {
     const attach = vi.fn();
     const router = createMockRouter();
     const openFolder = vi.fn();
     const resolved = createMockResolved();
+    const infoSpy = vi.fn();
+    const logger = { ...noopLogger, info: infoSpy };
     const config: CompanionConfig = {
       enabled: false,
       port: 3005,
@@ -199,11 +201,13 @@ describe('createCompanionOverlay', () => {
       attach,
       router,
       openFolder,
-      logger: noopLogger,
+      logger,
     });
 
     expect(attach).not.toHaveBeenCalled();
     expect(router.handlers.size).toBe(0);
     expect(overlay.visible).toBe(false);
+    overlay.toggle();
+    expect(infoSpy).toHaveBeenCalledWith('companion overlay is disabled in config');
   });
 });

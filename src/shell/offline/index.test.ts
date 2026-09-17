@@ -135,11 +135,13 @@ describe('createOfflineOverlay', () => {
     overlay.dispose();
   });
 
-  it('attaches nothing when config.enabled is false', () => {
+  it('attaches nothing and logs on toggle when config.enabled is false', () => {
     const clock = createFakeClock();
     const attach = vi.fn();
     const router = createMockRouter();
     const probe = vi.fn().mockResolvedValue(true);
+    const infoSpy = vi.fn();
+    const logger = { ...noopLogger, info: infoSpy };
 
     const config: OfflineConfig = {
       enabled: false,
@@ -154,11 +156,13 @@ describe('createOfflineOverlay', () => {
       probe,
       router,
       clock,
-      logger: noopLogger,
+      logger,
     });
 
     expect(attach).not.toHaveBeenCalled();
     expect(router.handlers.size).toBe(0);
     expect(overlay.status().isShowing).toBe(false);
+    overlay.toggle();
+    expect(infoSpy).toHaveBeenCalledWith('offline overlay is disabled in config');
   });
 });
