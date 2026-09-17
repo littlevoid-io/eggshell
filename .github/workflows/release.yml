@@ -1,0 +1,64 @@
+name: Automated Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Build, Release, and Stage Publish
+    runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm to Support Staged Publishing
+        run: npm install -g npm@latest
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Verification Suite
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run format:check
+          npm test
+
+      - name: Build Library and UI
+        run: npm run build
+
+      - name: Pack Distribution Tarball
+        shell: pwsh
+        run: |
+          $tarball = npm pack
+          echo "TARBALL=$tarball" >> $env:GITHUB_ENV
+
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          gh release view "v$version" > $null 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "v$version" --title "eggshell v$version" --generate-notes
+          }
+          gh release upload "v$version" $env:TARBALL --clobber
+
+      - name: Stage Publish to npm via OIDC
+        run: npm stage publish --access public

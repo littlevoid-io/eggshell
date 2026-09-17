@@ -48,6 +48,13 @@ npm run build          # build:lib + build:ui (build:ui also runs vue-tsc --noEm
 - `src/shell/**` (the Electron-touching layer) is intentionally lighter on unit tests: code that just wires up a real `BrowserWindow`/`webContents` isn't unit-tested. Only pure logic pulled out of that layer (e.g. `isKioskEscape`) gets a test — don't force a unit test onto imperative Electron wiring; verify it by running the app instead.
 - To verify Electron-side behavior that can't be unit-tested: `node dist/cli/bin.js dev --project-root <a consumer app>` (or `npm link` a scratch app) and read the shell's own structured logs rather than assuming success.
 
+## Release instructions
+
+- Release from `develop` branch with a clean working tree: `npm run release`.
+- The CLI prompts for a SemVer bump, creates the release branch, bumps versions, merges to `main`, tags, merges back to `develop`, and pushes to GitHub.
+- GitHub Actions (`.github/workflows/release.yml`) builds the package, creates the GitHub Release with the tarball, and runs `npm stage publish` via npm Trusted Publisher (OIDC).
+- Approve the staged release on [npmjs.com](https://www.npmjs.com) or via `npm stage approve <stage-id>`.
+
 ## PR instructions
 
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`) — check `git log` for the established tone.
