@@ -32,6 +32,8 @@ function buildWindow(
     url: 'https://example.test/',
     kiosk: true,
     fullscreen: false,
+    borderless: false,
+    autoHideMenuBar: true,
     zoomFactor: 1,
     showWhenReady: true,
     required: false,

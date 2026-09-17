@@ -31,6 +31,8 @@ export const windowConfigSchema = z
     target: displayTargetSchema.default({ kind: 'primary' }),
     kiosk: z.boolean().default(true),
     fullscreen: z.boolean().default(false),
+    borderless: z.boolean().default(false),
+    autoHideMenuBar: z.boolean().default(true),
     bounds: boundsSchema.optional(),
     backgroundColor: backgroundColorSchema.optional(),
     /** Path relative to `appDir`. Falls back to the top-level `icon`. */

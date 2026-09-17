@@ -19,6 +19,8 @@ function buildMaximalConfig() {
         target: { kind: 'primary' },
         kiosk: true,
         fullscreen: false,
+        borderless: true,
+        autoHideMenuBar: false,
         bounds: { x: 0, y: 0, width: 1920, height: 1080 },
         backgroundColor: '#000000',
         zoomFactor: 1,
@@ -254,6 +256,8 @@ describe('shellConfigSchema — minimal config and defaults', () => {
     expect(window).toMatchObject({
       kiosk: true,
       fullscreen: false,
+      borderless: false,
+      autoHideMenuBar: true,
       zoomFactor: 1,
       showWhenReady: true,
       required: false,
@@ -503,5 +507,64 @@ describe('shellConfigSchema — argv shape (shell-injection guard)', () => {
     const config = { ...minimalConfig(), processes: [corruptedProcess] };
     const result = shellConfigSchema.safeParse(config);
     expect(result.success).toBe(false);
+  });
+});
+
+describe('shellConfigSchema — window borderless & autoHideMenuBar', () => {
+  it('parses explicit borderless and autoHideMenuBar values', () => {
+    const config = {
+      ...minimalConfig(),
+      windows: [
+        {
+          id: 'main',
+          url: 'http://localhost:3000',
+          borderless: true,
+          autoHideMenuBar: false,
+        },
+      ],
+    };
+    const parsed = shellConfigSchema.parse(config);
+    expect(parsed.windows[0]?.borderless).toBe(true);
+    expect(parsed.windows[0]?.autoHideMenuBar).toBe(false);
+  });
+
+  it('rejects non-boolean borderless', () => {
+    const config = {
+      ...minimalConfig(),
+      windows: [
+        {
+          id: 'main',
+          url: 'http://localhost:3000',
+          borderless: 'true',
+        },
+      ],
+    };
+    const result = shellConfigSchema.safeParse(config);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(
+        expect.objectContaining({ path: ['windows', 0, 'borderless'] })
+      );
+    }
+  });
+
+  it('rejects non-boolean autoHideMenuBar', () => {
+    const config = {
+      ...minimalConfig(),
+      windows: [
+        {
+          id: 'main',
+          url: 'http://localhost:3000',
+          autoHideMenuBar: 1,
+        },
+      ],
+    };
+    const result = shellConfigSchema.safeParse(config);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(
+        expect.objectContaining({ path: ['windows', 0, 'autoHideMenuBar'] })
+      );
+    }
   });
 });
