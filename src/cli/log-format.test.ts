@@ -83,6 +83,38 @@ describe('formatLogRecord', () => {
       chalk.level = originalLevel;
     }
   });
+
+  it('overrides scope color with level color on warn and error', () => {
+    const warnOutput = formatLogRecord({
+      level: 'warn',
+      time: undefined,
+      scope: 'shell',
+      message: 'degraded',
+      fields: {},
+    });
+    expect(warnOutput).toBe(`${chalk.yellow('[shell]')} degraded`);
+
+    const errorOutput = formatLogRecord({
+      level: 'error',
+      time: undefined,
+      scope: 'shell',
+      message: 'failed',
+      fields: {},
+    });
+    expect(errorOutput).toBe(`${chalk.red('[shell]')} failed`);
+  });
+
+  it('preserves scope color on info and debug', () => {
+    const infoOutput = formatLogRecord({
+      level: 'info',
+      time: undefined,
+      scope: 'shell',
+      message: 'started',
+      fields: {},
+    });
+    const coloredScope = scopeColor('shell')('shell');
+    expect(infoOutput).toBe(`${chalk.cyan(`[${coloredScope}]`)} started`);
+  });
 });
 
 describe('scopeColor', () => {

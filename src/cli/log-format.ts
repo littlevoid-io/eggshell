@@ -101,10 +101,18 @@ export function parseLogLine(text: string): LogRecord | undefined {
   };
 }
 
+function formatBadge(record: LogRecord): string {
+  const scope = record.scope ?? '-';
+  if (record.level === 'warn' || record.level === 'error') {
+    return LEVEL_COLORS[record.level](`[${scope}]`);
+  }
+  const coloredScope = record.scope === undefined ? '-' : scopeColor(record.scope)(record.scope);
+  return LEVEL_COLORS[record.level](`[${coloredScope}]`);
+}
+
 export function formatLogRecord(record: LogRecord): string {
   const timePrefix = record.time === undefined ? '' : `${chalk.dim(formatLocalTime(record.time))} `;
-  const scopeText = record.scope === undefined ? '-' : scopeColor(record.scope)(record.scope);
-  const badge = LEVEL_COLORS[record.level](`[${scopeText}]`);
+  const badge = formatBadge(record);
   const hasFields = Object.keys(record.fields).length > 0;
   const fieldsSuffix = hasFields ? ` ${chalk.dim(JSON.stringify(record.fields))}` : '';
   return `${timePrefix}${badge} ${record.message}${fieldsSuffix}`;
