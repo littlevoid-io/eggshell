@@ -186,6 +186,13 @@
       window.addEventListener('mouseup', cancelHold);
       window.addEventListener('touchend', cancelHold);
       window.addEventListener('touchcancel', cancelHold);
+      window.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          if (window.eggshell && typeof window.eggshell.invoke === 'function') {
+            window.eggshell.invoke('offline:dismiss').catch(() => {});
+          }
+        }
+      });
     </script>
   </body>
 </html>

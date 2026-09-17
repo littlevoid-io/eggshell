@@ -91,6 +91,18 @@ function buildKeybindingHandlers(
   };
 }
 
+function attachOverlayKeybindings(
+  overlays: ShellOverlays,
+  config: ResolvedApp['config']['keybindings'],
+  handlers: CommandHandlers,
+  logger: Logger
+): void {
+  const views = [...(overlays.offline.views ?? []), ...(overlays.companion.views ?? [])];
+  for (const view of views) {
+    attachKeybindings(view.window, config, handlers, logger, view.webContents);
+  }
+}
+
 export function attachFeatures(
   resolved: ResolvedApp,
   windows: readonly ManagedWindow[],
@@ -106,6 +118,7 @@ export function attachFeatures(
     cursor.attach(window);
     attachKeybindings(window, resolved.config.keybindings, handlers, logger);
   }
+  attachOverlayKeybindings(overlays, resolved.config.keybindings, handlers, logger);
 }
 
 export function createShellRouter(

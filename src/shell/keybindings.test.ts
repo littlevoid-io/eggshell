@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BrowserWindow, Input } from 'electron';
-import { handleInput, matchKeybinding } from './keybindings.js';
+import { attachKeybindings, handleInput, matchKeybinding } from './keybindings.js';
 
 function keyDown(key: string, modifiers: Partial<Input> = {}): Input {
   return {
@@ -103,5 +103,41 @@ describe('handleInput', () => {
     );
     expect(match?.command).toBe('devtools.toggle');
     expect(handlers['devtools.toggle']).toHaveBeenCalledWith(fakeWindow);
+  });
+});
+
+describe('attachKeybindings', () => {
+  it('wires before-input-event on target webContents', () => {
+    const fakeWindow = {} as BrowserWindow;
+    const listeners: Record<string, (event: { preventDefault: () => void }, input: Input) => void> =
+      {};
+    const fakeTargetWebContents = {
+      on: vi.fn(
+        (event: string, cb: (event: { preventDefault: () => void }, input: Input) => void) => {
+          listeners[event] = cb;
+        }
+      ),
+    };
+    const handlers = {
+      'app.quit': vi.fn(),
+      'cursor.toggle': vi.fn(),
+      'offline.toggle': vi.fn(),
+      'companion.toggle': vi.fn(),
+      'devtools.toggle': vi.fn(),
+    };
+    attachKeybindings(
+      fakeWindow,
+      { enabled: true, bindings: [{ key: 'ctrl+shift+o', command: 'offline.toggle' }] },
+      handlers,
+      { info: vi.fn() } as never,
+      fakeTargetWebContents as never
+    );
+    const preventDefault = vi.fn();
+    listeners['before-input-event']?.(
+      { preventDefault },
+      keyDown('o', { control: true, shift: true })
+    );
+    expect(preventDefault).toHaveBeenCalled();
+    expect(handlers['offline.toggle']).toHaveBeenCalledWith(fakeWindow);
   });
 });

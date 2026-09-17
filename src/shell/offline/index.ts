@@ -11,6 +11,7 @@ import type { ConnectivityProbe } from './probe.js';
 import { OfflineStateMachine, type OfflineState } from './state.js';
 
 export interface OfflineOverlay {
+  readonly views?: readonly OverlayView[];
   toggle(): void;
   setShowing(showing: boolean): void;
   status(): OfflineState;
@@ -29,6 +30,7 @@ export interface OfflineOverlayOptions {
 
 function createNoopOfflineOverlay(): OfflineOverlay {
   return {
+    views: [],
     toggle: () => {},
     setShowing: () => {},
     status: () => ({
@@ -96,6 +98,26 @@ function startPolling(options: PollerOptions): () => void {
   };
 }
 
+function buildOfflineHandle(
+  overlaySet: OverlaySet,
+  state: OfflineStateMachine,
+  apply: (changed: boolean) => void,
+  stopPolling: () => void
+): OfflineOverlay {
+  return {
+    get views(): readonly OverlayView[] {
+      return overlaySet.views;
+    },
+    toggle: () => apply(state.toggle()),
+    setShowing: showing => apply(showing ? state.forceShow() : state.dismiss()),
+    status: () => state.getState(),
+    dispose: () => {
+      stopPolling();
+      overlaySet.destroy();
+    },
+  };
+}
+
 export function createOfflineOverlay(options: OfflineOverlayOptions): OfflineOverlay {
   const { config, windows, attach, probe, router, clock, logger } = options;
   if (!config.enabled) return createNoopOfflineOverlay();
@@ -106,13 +128,5 @@ export function createOfflineOverlay(options: OfflineOverlayOptions): OfflineOve
   const stopPolling = startPolling({ config, probe, state, onResult: apply, clock });
   router.handle('offline:dismiss', () => apply(state.dismiss()));
   router.handle('offline:status', () => state.getState());
-  return {
-    toggle: () => apply(state.toggle()),
-    setShowing: showing => apply(showing ? state.forceShow() : state.dismiss()),
-    status: () => state.getState(),
-    dispose: () => {
-      stopPolling();
-      overlaySet.destroy();
-    },
-  };
+  return buildOfflineHandle(overlaySet, state, apply, stopPolling);
 }

@@ -5,7 +5,7 @@ import type { CompanionConfig } from '../../config/types.js';
 import type { Logger } from '../../logging/logger.js';
 import type { IpcRouter } from '../ipc.js';
 import type { OverlayView } from '../overlay-view.js';
-import { createOverlaySet } from '../overlays/overlay-set.js';
+import { createOverlaySet, type OverlaySet } from '../overlays/overlay-set.js';
 import { selectTargetWindows } from '../overlays/targets.js';
 import type { ManagedWindow } from '../windows/create.js';
 import { buildCompanionUrl } from './network.js';
@@ -22,6 +22,7 @@ export interface CompanionStatus {
 }
 
 export interface CompanionOverlay {
+  readonly views?: readonly OverlayView[];
   toggle(): void;
   setShowing(showing: boolean): void;
   readonly visible: boolean;
@@ -40,6 +41,7 @@ export interface CompanionOverlayOptions {
 
 function createNoopCompanionOverlay(): CompanionOverlay {
   return {
+    views: [],
     toggle: () => {},
     setShowing: () => {},
     get visible(): boolean {
@@ -83,6 +85,20 @@ function createStatusProvider(
   };
 }
 
+function buildCompanionHandle(overlaySet: OverlaySet): CompanionOverlay {
+  return {
+    get views(): readonly OverlayView[] {
+      return overlaySet.views;
+    },
+    toggle: () => (overlaySet.visible ? overlaySet.hide() : overlaySet.show()),
+    setShowing: showing => (showing ? overlaySet.show() : overlaySet.hide()),
+    get visible(): boolean {
+      return overlaySet.visible;
+    },
+    dispose: () => overlaySet.destroy(),
+  };
+}
+
 export function createCompanionOverlay(options: CompanionOverlayOptions): CompanionOverlay {
   const { config, resolved, windows, attach, router, openFolder, logger } = options;
   if (!config.enabled) return createNoopCompanionOverlay();
@@ -97,12 +113,5 @@ export function createCompanionOverlay(options: CompanionOverlayOptions): Compan
   router.handle('companion:dismiss', () => overlaySet.hide());
   router.handle('companion:open-logs', () => openFolder(logDir));
 
-  return {
-    toggle: () => (overlaySet.visible ? overlaySet.hide() : overlaySet.show()),
-    setShowing: showing => (showing ? overlaySet.show() : overlaySet.hide()),
-    get visible(): boolean {
-      return overlaySet.visible;
-    },
-    dispose: () => overlaySet.destroy(),
-  };
+  return buildCompanionHandle(overlaySet);
 }

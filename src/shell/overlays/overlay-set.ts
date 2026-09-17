@@ -4,9 +4,14 @@ import type { ManagedWindow } from '../windows/create.js';
 
 export interface OverlaySet {
   readonly visible: boolean;
+  readonly views: readonly OverlayView[];
   show(): void;
   hide(): void;
   destroy(): void;
+}
+
+function invokeAll(views: readonly OverlayView[], method: 'show' | 'hide' | 'destroy'): void {
+  for (const view of views) view[method]();
 }
 
 export function createOverlaySet(
@@ -18,14 +23,11 @@ export function createOverlaySet(
     get visible(): boolean {
       return views.some(view => view.visible);
     },
-    show(): void {
-      for (const view of views) view.show();
+    get views(): readonly OverlayView[] {
+      return views;
     },
-    hide(): void {
-      for (const view of views) view.hide();
-    },
-    destroy(): void {
-      for (const view of views) view.destroy();
-    },
+    show: () => invokeAll(views, 'show'),
+    hide: () => invokeAll(views, 'hide'),
+    destroy: () => invokeAll(views, 'destroy'),
   };
 }

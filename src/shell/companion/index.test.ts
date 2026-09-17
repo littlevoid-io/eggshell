@@ -21,6 +21,9 @@ function createOverlaySpy(): OverlayView & { showCalls: number; hideCalls: numbe
     get webContents() {
       return {} as WebContents;
     },
+    get window() {
+      return {} as BrowserWindow;
+    },
     get showCalls() {
       return showCalls;
     },

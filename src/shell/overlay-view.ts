@@ -3,6 +3,7 @@ import { WebContentsView, type BrowserWindow, type WebContents } from 'electron'
 export interface OverlayView {
   readonly visible: boolean;
   readonly webContents: WebContents;
+  readonly window: BrowserWindow;
   show(): void;
   hide(): void;
   destroy(): void;
@@ -58,6 +59,11 @@ function showOverlay(view: WebContentsView, updateBounds: () => void): void {
   view.webContents.focus();
 }
 
+function hideOverlay(window: BrowserWindow, view: WebContentsView): void {
+  view.setVisible(false);
+  if (!window.isDestroyed()) window.webContents.focus();
+}
+
 function createOverlayHandle(
   window: BrowserWindow,
   view: WebContentsView,
@@ -70,8 +76,11 @@ function createOverlayHandle(
     get webContents(): WebContents {
       return view.webContents;
     },
+    get window(): BrowserWindow {
+      return window;
+    },
     show: () => showOverlay(view, updateBounds),
-    hide: () => view.setVisible(false),
+    hide: () => hideOverlay(window, view),
     destroy: () => destroyOverlay(window, view, updateBounds),
   };
 }

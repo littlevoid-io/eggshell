@@ -1,4 +1,4 @@
-import type { BrowserWindow, Input } from 'electron';
+import type { BrowserWindow, Input, WebContents } from 'electron';
 import type { Keybinding, Keybindings } from '../config/types.js';
 import type { KEYBINDING_COMMANDS } from '../config/schema/features.js';
 import type { Logger } from '../logging/logger.js';
@@ -45,10 +45,11 @@ export function attachKeybindings(
   window: BrowserWindow,
   config: Keybindings,
   handlers: CommandHandlers,
-  logger: Logger
+  logger: Logger,
+  targetWebContents: WebContents = window.webContents
 ): void {
   if (!config.enabled) return;
-  window.webContents.on('before-input-event', (event, input) => {
+  targetWebContents.on('before-input-event', (event, input) => {
     const match = handleInput(window, input, config.bindings, handlers);
     if (!match) return;
     event.preventDefault();
