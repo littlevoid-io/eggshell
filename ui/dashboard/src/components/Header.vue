@@ -5,6 +5,11 @@ import type { ConnectionState, DashboardStatus } from '../types.js';
 const props = defineProps<{
   status: DashboardStatus | null;
   connectionState: ConnectionState;
+  isMenuOpen?: boolean;
+}>();
+
+const emit = defineEmits<{
+  (event: 'toggleMenu'): void;
 }>();
 
 function formatUptime(seconds: number): string {
@@ -96,6 +101,18 @@ const connectionDotClasses = computed(() => {
         <span class="h-1.5 w-1.5 rounded-full" :class="connectionDotClasses" />
         <span class="capitalize">{{ connectionState }}</span>
       </div>
+
+      <button
+        type="button"
+        aria-label="Quick Actions"
+        :aria-expanded="isMenuOpen"
+        class="inline-flex items-center justify-center rounded border border-zinc-700 bg-zinc-800 p-1.5 text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white focus:outline-none"
+        @click="emit('toggleMenu')"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
     </div>
   </header>
 </template>

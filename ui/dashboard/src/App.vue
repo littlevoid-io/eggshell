@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
 import { openLogStream, post } from './api.js';
+import ActionsMenu from './components/ActionsMenu.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import DisplayLayout from './components/DisplayLayout.vue';
 import Header from './components/Header.vue';
 import LogConsole from './components/LogConsole.vue';
-import QuickActions from './components/QuickActions.vue';
 import type { ConnectionState, DashboardStatus, SseEvent } from './types.js';
 
 interface ConfirmState {
@@ -19,6 +19,7 @@ const status = ref<DashboardStatus | null>(null);
 const logLines = ref<string[]>([]);
 const connectionState = ref<ConnectionState>('connecting');
 const pendingConfirm = ref<ConfirmState | null>(null);
+const isMenuOpen = ref(false);
 
 let eventSource: EventSource | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -104,24 +105,34 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex h-screen w-full flex-col bg-zinc-950 text-zinc-100 antialiased select-none">
-    <Header :status="status" :connection-state="connectionState" />
+  <div
+    class="flex min-h-screen w-full flex-col bg-zinc-950 text-zinc-100 antialiased select-none lg:h-screen lg:overflow-hidden"
+  >
+    <Header
+      :status="status"
+      :connection-state="connectionState"
+      :is-menu-open="isMenuOpen"
+      @toggle-menu="isMenuOpen = !isMenuOpen"
+    />
 
-    <main class="grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-2">
-      <div class="flex flex-col gap-3 overflow-y-auto pr-1">
+    <main class="flex flex-1 flex-col gap-3 p-3 lg:grid lg:grid-cols-2 lg:overflow-hidden">
+      <div class="flex flex-col gap-3 lg:overflow-y-auto pr-1">
         <DisplayLayout :displays="status?.displays ?? []" :windows="status?.windows ?? []" />
-        <QuickActions
-          :status="status"
-          :disabled="connectionState !== 'connected'"
-          @action="executeAction"
-          @confirm="handleConfirmRequest"
-        />
       </div>
 
-      <div class="flex h-full min-h-[360px] flex-col overflow-hidden lg:min-h-0">
+      <div class="flex flex-col h-[520px] lg:h-full lg:min-h-0 overflow-hidden">
         <LogConsole :lines="logLines" />
       </div>
     </main>
+
+    <ActionsMenu
+      :open="isMenuOpen"
+      :status="status"
+      :disabled="connectionState !== 'connected'"
+      @close="isMenuOpen = false"
+      @action="executeAction"
+      @confirm="handleConfirmRequest"
+    />
 
     <ConfirmDialog
       v-if="pendingConfirm"
