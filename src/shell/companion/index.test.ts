@@ -96,6 +96,7 @@ describe('createCompanionOverlay', () => {
       attach,
       router,
       openFolder,
+      openUrl: vi.fn(),
       logger: noopLogger,
     });
 
@@ -133,6 +134,7 @@ describe('createCompanionOverlay', () => {
       attach,
       router,
       openFolder,
+      openUrl: vi.fn(),
       logger: noopLogger,
     });
 
@@ -140,6 +142,68 @@ describe('createCompanionOverlay', () => {
     expect(openLogsHandler).toBeDefined();
     await openLogsHandler?.({ windowId: 'main', sender: {} as WebContents });
     expect(openFolder).toHaveBeenCalledWith(path.resolve(resolved.userData, 'logs'));
+  });
+
+  it('calls openUrl on companion:open-url IPC', async () => {
+    const overlaySpy = createOverlaySpy();
+    const attach = vi.fn().mockReturnValue(overlaySpy);
+    const router = createMockRouter();
+    const openFolder = vi.fn().mockResolvedValue('');
+    const openUrl = vi.fn().mockResolvedValue(undefined);
+    const resolved = createMockResolved();
+    const config: CompanionConfig = {
+      enabled: true,
+      port: 3005,
+      path: '/',
+    };
+
+    createCompanionOverlay({
+      config,
+      resolved,
+      windows: [{ id: 'main', window: {} as BrowserWindow }],
+      attach,
+      router,
+      openFolder,
+      openUrl,
+      logger: noopLogger,
+    });
+
+    const openUrlHandler = router.handlers.get('companion:open-url');
+    expect(openUrlHandler).toBeDefined();
+    await openUrlHandler?.(
+      { windowId: 'main', sender: {} as WebContents },
+      'http://localhost:3005/'
+    );
+    expect(openUrl).toHaveBeenCalledWith('http://localhost:3005/');
+  });
+
+  it('warns if companion is enabled with default url but dashboard is disabled', () => {
+    const overlaySpy = createOverlaySpy();
+    const attach = vi.fn().mockReturnValue(overlaySpy);
+    const router = createMockRouter();
+    const resolved = createMockResolved();
+    const warnSpy = vi.fn();
+    const logger = { ...noopLogger, warn: warnSpy };
+    const config: CompanionConfig = {
+      enabled: true,
+      port: 3005,
+      path: '/',
+    };
+
+    createCompanionOverlay({
+      config,
+      resolved,
+      windows: [{ id: 'main', window: {} as BrowserWindow }],
+      attach,
+      router,
+      openFolder: vi.fn(),
+      openUrl: vi.fn(),
+      logger,
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      'companion overlay defaults to port 3005 but dashboard server is disabled in config'
+    );
   });
 
   it('toggles overlay visibility and dismisses on companion:dismiss IPC', () => {
@@ -161,6 +225,7 @@ describe('createCompanionOverlay', () => {
       attach,
       router,
       openFolder,
+      openUrl: vi.fn(),
       logger: noopLogger,
     });
 
@@ -201,6 +266,7 @@ describe('createCompanionOverlay', () => {
       attach,
       router,
       openFolder,
+      openUrl: vi.fn(),
       logger,
     });
 

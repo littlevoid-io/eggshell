@@ -6,6 +6,7 @@ import { createBlackout } from './blackout.js';
 import { registerBuiltinChannels } from './channels.js';
 import { createCompanionOverlay, type CompanionOverlay } from './companion/index.js';
 import { openFolder } from './companion/open-folder.js';
+import { openExternalUrl } from './companion/open-url.js';
 import { createCursorController, initialCursorVisible } from './cursor.js';
 import { createIpcRouter, type IpcRouter } from './ipc.js';
 import { attachKeybindings, type CommandHandlers } from './keybindings.js';
@@ -21,9 +22,16 @@ export interface ShellOverlays {
   readonly companion: CompanionOverlay;
 }
 
-function attachOverlay(asset: string, paths: ShellPaths): (window: BrowserWindow) => OverlayView {
+const OFFLINE_FADE_DURATION_MS = 400;
+
+function attachOverlay(
+  asset: string,
+  paths: ShellPaths,
+  fadeDurationMs?: number
+): (window: BrowserWindow) => OverlayView {
   const htmlPath = paths.asset(asset);
-  return window => attachOverlayView({ window, htmlPath, preloadPath: paths.preload });
+  return window =>
+    attachOverlayView({ window, htmlPath, preloadPath: paths.preload, fadeDurationMs });
 }
 
 function createOffline(
@@ -36,7 +44,7 @@ function createOffline(
   return createOfflineOverlay({
     config: resolved.config.offline,
     windows,
-    attach: attachOverlay('offline.html', paths),
+    attach: attachOverlay('offline.html', paths, OFFLINE_FADE_DURATION_MS),
     probe: createConnectivityProbe({ pingUrl: resolved.config.offline.pingUrl }),
     router,
     clock: systemClock,
@@ -58,6 +66,7 @@ function createCompanion(
     attach: attachOverlay('companion.html', paths),
     router,
     openFolder,
+    openUrl: openExternalUrl,
     logger,
   });
 }

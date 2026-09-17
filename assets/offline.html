@@ -15,7 +15,7 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background-color: #0b0c10;
+        background: transparent;
         font-family:
           -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         color: #ffffff;
@@ -29,9 +29,16 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        background-color: rgba(11, 12, 16, 0.55);
+        background-color: rgba(11, 12, 16, 0.75);
         backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
+        opacity: 0;
+        transition: opacity 0.4s ease-in-out;
+        pointer-events: none;
+      }
+      .overlay-container.visible {
+        opacity: 1;
+        pointer-events: auto;
       }
       .background-blobs {
         position: absolute;
@@ -174,11 +181,32 @@
       function startHold() {
         cancelHold();
         bar.classList.add('active');
-        timer = setTimeout(() => {
-          if (window.eggshell && typeof window.eggshell.invoke === 'function') {
-            window.eggshell.invoke('offline:dismiss').catch(() => {});
-          }
-        }, 5000);
+        timer = setTimeout(dismiss, 5000);
+      }
+
+      function show() {
+        requestAnimationFrame(() => {
+          container.classList.add('visible');
+        });
+      }
+
+      function hide() {
+        cancelHold();
+        container.classList.remove('visible');
+      }
+
+      function dismiss() {
+        hide();
+        if (window.eggshell && typeof window.eggshell.invoke === 'function') {
+          window.eggshell.invoke('offline:dismiss').catch(() => {});
+        }
+      }
+
+      window.show = show;
+      window.hide = hide;
+
+      if (!window.eggshell) {
+        show();
       }
 
       container.addEventListener('mousedown', startHold);
@@ -188,9 +216,7 @@
       window.addEventListener('touchcancel', cancelHold);
       window.addEventListener('keydown', event => {
         if (event.key === 'Escape') {
-          if (window.eggshell && typeof window.eggshell.invoke === 'function') {
-            window.eggshell.invoke('offline:dismiss').catch(() => {});
-          }
+          dismiss();
         }
       });
     </script>

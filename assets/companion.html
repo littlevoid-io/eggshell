@@ -46,6 +46,8 @@
         align-items: center;
         text-align: center;
         animation: appear 0.2s ease-out;
+        user-select: text;
+        -webkit-user-select: text;
       }
       @keyframes appear {
         from {
@@ -73,6 +75,8 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        user-select: none;
+        -webkit-user-select: none;
         transition:
           background 0.15s,
           color 0.15s;
@@ -87,6 +91,8 @@
         color: #f8fafc;
         margin-bottom: 8px;
         letter-spacing: -0.01em;
+        user-select: text;
+        -webkit-user-select: text;
       }
       .description {
         font-size: 0.875rem;
@@ -94,6 +100,8 @@
         line-height: 1.4;
         margin-bottom: 24px;
         padding: 0 8px;
+        user-select: text;
+        -webkit-user-select: text;
       }
       .qr-frame {
         background: #ffffff;
@@ -104,11 +112,15 @@
         justify-content: center;
         align-items: center;
         margin-bottom: 20px;
+        user-select: none;
+        -webkit-user-select: none;
       }
       .qr-image {
         display: block;
         width: 200px;
         height: 200px;
+        user-select: none;
+        -webkit-user-select: none;
       }
       .url-badge {
         display: inline-block;
@@ -124,10 +136,26 @@
         font-size: 0.8125rem;
         color: #38bdf8;
         margin-bottom: 16px;
+        text-decoration: none;
+        cursor: pointer;
+        user-select: text;
+        -webkit-user-select: text;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          color 0.15s;
+      }
+      .url-badge:hover {
+        background: rgba(56, 189, 248, 0.12);
+        border-color: rgba(56, 189, 248, 0.3);
+        color: #7dd3fc;
+        text-decoration: underline;
       }
       .footer-hint {
         font-size: 0.75rem;
         color: #64748b;
+        user-select: text;
+        -webkit-user-select: text;
       }
     </style>
   </head>
@@ -140,7 +168,7 @@
         <div class="qr-frame">
           <img class="qr-image" id="qrImage" alt="Companion QR Code" />
         </div>
-        <div class="url-badge" id="urlText"></div>
+        <a class="url-badge" id="urlText" href="#" target="_blank" rel="noopener noreferrer"></a>
         <p class="footer-hint">Tap outside or press Esc to dismiss</p>
       </div>
     </div>
@@ -152,10 +180,20 @@
       const descEl = document.getElementById('description');
       const qrImage = document.getElementById('qrImage');
       const urlText = document.getElementById('urlText');
+      let currentUrl = '';
 
       function dismissOverlay() {
         if (window.eggshell && typeof window.eggshell.invoke === 'function') {
           window.eggshell.invoke('companion:dismiss').catch(() => {});
+        }
+      }
+
+      function openUrl() {
+        if (!currentUrl) return;
+        if (window.eggshell && typeof window.eggshell.invoke === 'function') {
+          window.eggshell.invoke('companion:open-url', currentUrl).catch(() => {});
+        } else {
+          window.open(currentUrl, '_blank');
         }
       }
 
@@ -167,8 +205,19 @@
           descEl.style.display = state.description ? 'block' : 'none';
         }
         if (state.qrDataUrl) qrImage.src = state.qrDataUrl;
-        if (state.url) urlText.textContent = state.url;
+        if (state.url) {
+          currentUrl = state.url;
+          urlText.textContent = state.url;
+          urlText.href = state.url;
+        }
       }
+
+      urlText.addEventListener('click', event => {
+        event.preventDefault();
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) return;
+        openUrl();
+      });
 
       closeButton.addEventListener('click', dismissOverlay);
       backdrop.addEventListener('click', event => {

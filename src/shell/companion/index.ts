@@ -36,6 +36,7 @@ export interface CompanionOverlayOptions {
   readonly attach: (window: BrowserWindow) => OverlayView;
   readonly router: IpcRouter;
   readonly openFolder: (directory: string) => Promise<unknown>;
+  readonly openUrl: (url: string) => Promise<unknown>;
   readonly logger: Logger;
 }
 
@@ -105,19 +106,44 @@ function buildCompanionHandle(overlaySet: OverlaySet, logger: Logger): Companion
   };
 }
 
+interface CompanionRouteOptions {
+  readonly router: IpcRouter;
+  readonly overlaySet: OverlaySet;
+  readonly getStatus: () => Promise<CompanionStatus>;
+  readonly openFolder: (directory: string) => Promise<unknown>;
+  readonly openUrl: (url: string) => Promise<unknown>;
+  readonly logDir: string;
+}
+
+function registerCompanionRoutes(options: CompanionRouteOptions): void {
+  const { router, overlaySet, getStatus, openFolder, openUrl, logDir } = options;
+  router.handle('companion:status', () => getStatus());
+  router.handle('companion:dismiss', () => overlaySet.hide());
+  router.handle('companion:open-logs', () => openFolder(logDir));
+  router.handle('companion:open-url', (_ctx, targetUrl) => {
+    if (typeof targetUrl === 'string') return openUrl(targetUrl);
+  });
+}
+
+function checkCompanionDashboard(config: CompanionConfig, resolved: ResolvedApp, logger: Logger) {
+  if (!config.url && !resolved.config.dashboard.enabled) {
+    logger.warn(
+      'companion overlay defaults to port 3005 but dashboard server is disabled in config'
+    );
+  }
+}
+
 export function createCompanionOverlay(options: CompanionOverlayOptions): CompanionOverlay {
-  const { config, resolved, windows, attach, router, openFolder, logger } = options;
+  const { config, resolved, windows, attach, router, openFolder, openUrl, logger } = options;
   if (!config.enabled) return createNoopCompanionOverlay(logger);
 
+  checkCompanionDashboard(config, resolved, logger);
   const targetWindows = selectTargetWindows(windows, config.windows, logger);
   const overlaySet = createOverlaySet(targetWindows, attach);
   const url = buildCompanionUrl({ url: config.url, port: config.port, path: config.path });
   const logDir = path.resolve(resolved.userData, resolved.config.logging.file.directory);
   const getStatus = createStatusProvider(config, resolved, url, logDir);
 
-  router.handle('companion:status', () => getStatus());
-  router.handle('companion:dismiss', () => overlaySet.hide());
-  router.handle('companion:open-logs', () => openFolder(logDir));
-
+  registerCompanionRoutes({ router, overlaySet, getStatus, openFolder, openUrl, logDir });
   return buildCompanionHandle(overlaySet, logger);
 }
