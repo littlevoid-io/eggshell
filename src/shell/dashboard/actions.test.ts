@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BrowserWindow, WebContents } from 'electron';
+import { createFakeClock } from '../../__testing__/fake-clock.js';
 import type { CompanionOverlay } from '../companion/index.js';
 import type { OfflineOverlay } from '../offline/index.js';
 import type { ManagedWindow } from '../windows/create.js';
@@ -74,6 +75,7 @@ describe('dashboard actions', () => {
   });
 
   it('focuses non-destroyed windows, restores if minimized, and elevates z-order', () => {
+    const clock = createFakeClock();
     const focusApp = vi.fn();
     const minimized = createFakeWindow({ destroyed: false, minimized: true, alwaysOnTop: false });
     const normal = createFakeWindow({ destroyed: false, minimized: false, alwaysOnTop: true });
@@ -92,6 +94,7 @@ describe('dashboard actions', () => {
       relaunch: vi.fn(),
       quit: vi.fn(),
       focusApp,
+      clock,
     });
 
     actions.focusWindows();
@@ -102,7 +105,6 @@ describe('dashboard actions', () => {
     expect(minimized.setAlwaysOnTopFn).toHaveBeenNthCalledWith(1, true);
     expect(minimized.moveTopFn).toHaveBeenCalledTimes(1);
     expect(minimized.focusFn).toHaveBeenCalledTimes(1);
-    expect(minimized.setAlwaysOnTopFn).toHaveBeenNthCalledWith(2, false);
 
     expect(normal.restoreFn).not.toHaveBeenCalled();
     expect(normal.showFn).toHaveBeenCalledTimes(1);
@@ -114,24 +116,68 @@ describe('dashboard actions', () => {
     expect(destroyed.restoreFn).not.toHaveBeenCalled();
     expect(destroyed.showFn).not.toHaveBeenCalled();
     expect(destroyed.focusFn).not.toHaveBeenCalled();
+
+    clock.advance(100);
+    expect(minimized.setAlwaysOnTopFn).toHaveBeenNthCalledWith(2, false);
+    expect(normal.setAlwaysOnTopFn).toHaveBeenCalledTimes(1);
   });
 
-  it('delegates recalculateLayout, restart, and quit', () => {
+  it('debounces demotion across rapid focus requests so alwaysOnTop stays consistent', () => {
+    const clock = createFakeClock();
+    const normal = createFakeWindow({ destroyed: false, minimized: false, alwaysOnTop: false });
+    const windows: readonly ManagedWindow[] = [{ id: 'normal', window: normal.window }];
+
+    const actions = createActions({
+      windows,
+      offline: { toggle: vi.fn(), setShowing: vi.fn() } as unknown as OfflineOverlay,
+      companion: { toggle: vi.fn(), setShowing: vi.fn() } as unknown as CompanionOverlay,
+      recalculateLayout: vi.fn(),
+      relaunch: vi.fn(),
+      quit: vi.fn(),
+      clock,
+    });
+
+    actions.focusWindows();
+    expect(normal.setAlwaysOnTopFn).toHaveBeenNthCalledWith(1, true);
+
+    clock.advance(50);
+    normal.isAlwaysOnTopFn.mockReturnValue(true);
+
+    actions.focusWindows();
+    expect(normal.setAlwaysOnTopFn).toHaveBeenNthCalledWith(2, true);
+
+    clock.advance(50);
+    expect(normal.setAlwaysOnTopFn).toHaveBeenCalledTimes(2);
+
+    clock.advance(50);
+    expect(normal.setAlwaysOnTopFn).toHaveBeenNthCalledWith(3, false);
+    expect(normal.setAlwaysOnTopFn).toHaveBeenCalledTimes(3);
+  });
+
+  it('delegates recalculateLayout and brings windows to front, restart, and quit', () => {
     const recalculateLayout = vi.fn();
     const relaunch = vi.fn();
     const quit = vi.fn();
+    const focusApp = vi.fn();
+    const normal = createFakeWindow({ destroyed: false, minimized: false });
+    const windows: readonly ManagedWindow[] = [{ id: 'normal', window: normal.window }];
 
     const actions = createActions({
-      windows: [],
+      windows,
       offline: { toggle: vi.fn(), setShowing: vi.fn() } as unknown as OfflineOverlay,
       companion: { toggle: vi.fn(), setShowing: vi.fn() } as unknown as CompanionOverlay,
       recalculateLayout,
       relaunch,
       quit,
+      focusApp,
     });
 
     actions.recalculateLayout();
     expect(recalculateLayout).toHaveBeenCalledTimes(1);
+    expect(focusApp).toHaveBeenCalledTimes(1);
+    expect(normal.showFn).toHaveBeenCalledTimes(1);
+    expect(normal.moveTopFn).toHaveBeenCalledTimes(1);
+    expect(normal.focusFn).toHaveBeenCalledTimes(1);
 
     actions.restart();
     expect(relaunch).toHaveBeenCalledTimes(1);

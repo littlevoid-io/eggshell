@@ -38,6 +38,12 @@ function corsMiddleware(req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
+function htmlNoCache(res: Response, filePath: string): void {
+  if (filePath.endsWith('.html')) {
+    res.setHeader('Cache-Control', 'no-cache');
+  }
+}
+
 function handleSpaFallback(
   uiDirectory: string,
   req: Request,
@@ -47,6 +53,7 @@ function handleSpaFallback(
   if (req.method === 'GET' && !req.path.startsWith('/api')) {
     const indexHtml = path.resolve(uiDirectory, 'index.html');
     if (existsSync(indexHtml)) {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(indexHtml);
       return;
     }
@@ -61,7 +68,7 @@ function buildApp(options: DashboardServerOptions): Express {
   app.use(json());
   app.use(corsMiddleware);
   app.use('/api', createAuthMiddleware(options.config.token), options.router);
-  app.use(serveStatic(options.uiDirectory));
+  app.use(serveStatic(options.uiDirectory, { setHeaders: htmlNoCache }));
   app.use((req, res, next) => handleSpaFallback(options.uiDirectory, req, res, next));
   return app;
 }
