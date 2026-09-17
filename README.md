@@ -2,25 +2,17 @@
 
 CLI that owns the Electron process for kiosk installations. An exhibit repo holds one config file; eggshell handles windows, multi-display layout, child processes, logging, overlays, a remote dashboard and packaging.
 
-Docs: [architecture](docs/architecture.md), [provenance and test checklist](docs/provenance.md), [provisioning hand-off](docs/provisioning.md).
+Docs: [architecture](docs/architecture.md), [provenance and test checklist](docs/provenance.md), [provisioning hand-off](docs/provisioning.md), [contributing](CONTRIBUTING.md).
 
 ## Quick start
 
-Until eggshell is published, link the local checkout once:
+In an exhibit app repository:
 
 ```sh
-cd <eggshell checkout> && npm install && npm run build && npm link
-```
-
-Then in the app repo:
-
-```sh
-npm link @littlevoid/eggshell   # symlinks node_modules/@littlevoid/eggshell to the checkout
-eggshell init            # writes eggshell.config.ts, package scripts, .gitignore, public/index.html
+npm install -D @littlevoid/eggshell
+npx eggshell init
 npm run dev
 ```
-
-`init` derives `appId` (`local.<folder>`, replace it with e.g. `littlevoid.<name>`; any two-plus dotted lowercase segments work) and `productName` from the folder name unless `--app-id` / `--product-name` are given, and records `@littlevoid/eggshell` as a dev dependency. Do not run `npm install` in the app repo before it is published. Rebuilding the checkout (`npm run build`) is picked up by the link immediately.
 
 `eggshell.config.ts`:
 
@@ -28,23 +20,27 @@ npm run dev
 import { defineConfig } from '@littlevoid/eggshell';
 
 export default defineConfig(({ appDir, isDev }) => ({
-  appId: 'com.example.mural',
-  productName: 'Mural',
-  windows: [{ id: 'main', url: isDev ? 'http://localhost:3000' : 'public/index.html' }],
+  appId: 'com.example.my-app',
+  productName: 'My App',
+  windows: [{ id: 'main', url: isDev ? 'http://localhost:5173' : 'dist/index.html' }],
   processes: [
     {
-      id: 'server',
-      command: 'node',
-      args: ['dist/server.js'],
-      phase: 'production',
-      readiness: { kind: 'tcp', port: 3001 },
+      id: 'vite',
+      command: 'npm',
+      args: ['run', 'dev:vite'],
+      phase: 'dev',
+      readiness: { kind: 'tcp', port: 5173 },
     },
   ],
   dashboard: { enabled: true },
+  companion: { enabled: true },
+  build: {
+    files: ['dist/**'],
+  },
 }));
 ```
 
-A window `url` without a scheme is a file path relative to the config file.
+Paths in `url` resolve relative to `eggshell.config.ts`.
 
 ## Commands
 
@@ -95,15 +91,19 @@ The shell captures shortcuts across all managed windows (`keybindings` config se
 The preload exposes `window.eggshell`:
 
 - `invoke(channel, ...args)`: `app:quit`, `blackout:show`, `blackout:hide`, `state-sync:update`, `state-sync:send-event`, `state-sync:request-current`, `offline:status`, `companion:status`, `soak:status`.
-- `on(channel, listener)`: `state-sync:on-update`, `state-sync:on-event`, `state-sync:on-request-current`.
+- `on(channel, listener)`: `state-sync:on-update`, `state-sync:on-event`, `state-sync:on-request-current`. Returns an unsubscribe function `() => void`.
 - `log.debug|info|warn|error(message, fields)`: lands in the shell log. Plain `console.*` is forwarded too.
 
 ## Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full development, linking, and testing instructions.
+
 ```sh
 npm install
 npm run build        # library + dashboard UI
-npm run typecheck && npm test && npm run lint
+npm run typecheck
+npm test
+npm run lint
 npm run dev:ui       # dashboard UI with HMR against a running kiosk on :3005
 ```
 
