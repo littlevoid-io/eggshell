@@ -33,6 +33,19 @@ function onToggleOffline(): void {
   });
 }
 
+function onToggleCompanion(): void {
+  if (isCompanionShowing.value) {
+    emit('action', 'toggle-companion', { show: false });
+    return;
+  }
+  emit('confirm', {
+    title: 'Show Companion Overlay',
+    message: 'Set companion overlay to visible?',
+    action: 'toggle-companion',
+    body: { show: true },
+  });
+}
+
 function onRestart(): void {
   emit('confirm', {
     title: 'Restart Shell',
@@ -104,7 +117,7 @@ function onQuit(): void {
           ? 'border-indigo-700 bg-indigo-950/60 text-indigo-200 hover:bg-indigo-900/60'
           : 'border-zinc-700 bg-zinc-800/80 text-zinc-200 hover:bg-zinc-700'
       "
-      @click="emit('action', 'toggle-companion', { show: !isCompanionShowing })"
+      @click="onToggleCompanion"
     >
       Companion overlay: {{ isCompanionShowing ? 'ON' : 'OFF' }}
     </button>
