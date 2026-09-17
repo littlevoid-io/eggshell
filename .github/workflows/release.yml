@@ -61,4 +61,4 @@ jobs:
           gh release upload "v$version" $env:TARBALL --clobber
 
       - name: Stage Publish to npm via OIDC
-        run: npm stage publish --access public
+        run: npm stage publish
