@@ -17,7 +17,7 @@ import { startShellDashboard } from './dashboard-setup.js';
 import { createRelaunchController, type RelaunchController } from './relaunch.js';
 import { loadChromeExtensions } from './extensions.js';
 import type { IpcRouter } from './ipc.js';
-import { keepDisplayAwake, registerShutdown, watchParent } from './lifecycle.js';
+import { initLifecycle, registerShutdown, type ShellShutdownServices } from './lifecycle.js';
 import { createShellLogger } from './logger.js';
 import { resolveShellPaths } from './paths.js';
 import { startProductionProcesses, type ProductionProcesses } from './processes.js';
@@ -43,14 +43,6 @@ app.setName(config.productName);
 app.setPath('userData', resolved.userData);
 applyChromiumFlags(app.commandLine, config.chromiumFlags, resolved.isDev);
 
-interface ShellServices {
-  readonly overlays: ShellOverlays;
-  readonly topology: TopologyWatcher;
-  readonly dashboard: { stop: () => Promise<void> };
-  readonly soak: SoakRunner;
-  readonly processes: ProductionProcesses;
-}
-
 async function setupLogger(resolvedApp: ResolvedApp, logBufferSize: number) {
   const logBroadcast = createLogBroadcast(logBufferSize);
   const logger = await createShellLogger(resolvedApp, {
@@ -62,8 +54,7 @@ async function setupLogger(resolvedApp: ResolvedApp, logBufferSize: number) {
 
 async function initShell(resolvedApp: ResolvedApp, logger: Logger, parentPid?: number) {
   applyBrowserPermissions(session.defaultSession, resolvedApp.config.browserPermissions);
-  keepDisplayAwake();
-  if (parentPid !== undefined) watchParent(parentPid, () => app.quit());
+  initLifecycle(parentPid);
   const { chromeExtensions } = resolvedApp.config;
   await loadChromeExtensions(session.defaultSession, chromeExtensions, resolvedApp.appDir, logger);
 }
@@ -101,7 +92,7 @@ function initSoak(options: ServiceOptions): SoakRunner {
   });
 }
 
-function startServices(options: ServiceOptions): ShellServices {
+function startServices(options: ServiceOptions): ShellShutdownServices {
   const holder: { runner?: SoakRunner } = {};
   const relaunch = () => {
     options.relaunch.request();

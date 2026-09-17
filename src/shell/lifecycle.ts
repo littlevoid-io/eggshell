@@ -16,6 +16,11 @@ export function watchParent(pid: number, onGone: () => void, intervalMs = 2000):
   }, intervalMs);
 }
 
+export function initLifecycle(parentPid?: number): void {
+  keepDisplayAwake();
+  if (parentPid !== undefined) watchParent(parentPid, () => app.quit());
+}
+
 export interface ShellShutdownServices {
   readonly overlays: {
     readonly offline: { dispose(): void };
@@ -33,7 +38,7 @@ function finishShutdown(relaunch: RelaunchController, parentPid?: number): void 
     app.exit(parentPid === undefined ? 0 : RELAUNCH_EXIT_CODE);
     return;
   }
-  app.quit();
+  app.exit(0);
 }
 
 function stopAllServices(services: ShellShutdownServices): Promise<unknown> {
@@ -51,8 +56,8 @@ export function registerShutdown(
 ): void {
   let isQuitting = false;
   app.on('before-quit', event => {
-    if (isQuitting) return;
     event.preventDefault();
+    if (isQuitting) return;
     isQuitting = true;
     void stopAllServices(services).finally(() => finishShutdown(relaunch, parentPid));
   });
