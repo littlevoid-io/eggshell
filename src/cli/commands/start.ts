@@ -6,6 +6,7 @@ import { assertManifestPlatform, readManifest, type LaunchManifest } from '../..
 import { shutdownAll } from '../../process/shutdown.js';
 import { spawnManaged } from '../../process/spawn.js';
 import type { ManagedProcess, ProcessLine } from '../../process/types.js';
+import { RELAUNCH_EXIT_CODE } from '../../shell/relaunch.js';
 import { loadApp } from '../load-config.js';
 import { formatLogRecord, parseLogLine } from '../log-format.js';
 import { terminalLogger } from '../output.js';
@@ -28,20 +29,29 @@ function forwardLine(line: ProcessLine): void {
   stream.write(record ? `${formatLogRecord(record)}\n` : `${chalk.dim('[app] ')}${line.text}\n`);
 }
 
-async function runExecutable(manifest: LaunchManifest): Promise<number> {
-  const handle: ManagedProcess = spawnManaged({
+function spawnPackaged(manifest: LaunchManifest): ManagedProcess {
+  const handle = spawnManaged({
     id: manifest.productName,
     command: manifest.executablePath,
     args: ['--eggshell-parent-pid', String(process.pid)],
     cwd: path.dirname(manifest.executablePath),
   });
   handle.lines.onLine(forwardLine);
+  return handle;
+}
+
+async function runExecutable(manifest: LaunchManifest): Promise<number> {
+  let handle = spawnPackaged(manifest);
   const stop = () =>
     void shutdownAll([{ handle }], { graceMs: 5000, clock: systemClock, logger: terminalLogger });
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
-  const exit = await handle.exited;
-  return exit.code ?? 1;
+  while (true) {
+    const exit = await handle.exited;
+    if (exit.code !== RELAUNCH_EXIT_CODE) return exit.code ?? 1;
+    terminalLogger.info('Restarting application');
+    handle = spawnPackaged(manifest);
+  }
 }
 
 /** Runs the packaged executable named by the launch manifest and relays its exit code. */

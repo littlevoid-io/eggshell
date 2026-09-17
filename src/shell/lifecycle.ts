@@ -1,4 +1,5 @@
-import { powerSaveBlocker } from 'electron';
+import { app, powerSaveBlocker } from 'electron';
+import { RELAUNCH_EXIT_CODE, type RelaunchController } from './relaunch.js';
 
 export function keepDisplayAwake(): number {
   return powerSaveBlocker.start('prevent-display-sleep');
@@ -13,4 +14,46 @@ export function watchParent(pid: number, onGone: () => void, intervalMs = 2000):
       onGone();
     }
   }, intervalMs);
+}
+
+export interface ShellShutdownServices {
+  readonly overlays: {
+    readonly offline: { dispose(): void };
+    readonly companion: { dispose(): void };
+  };
+  readonly topology: { dispose(): void };
+  readonly dashboard: { stop(): Promise<unknown> };
+  readonly soak: { stop(): Promise<unknown> };
+  readonly processes: { stop(): Promise<unknown> };
+}
+
+function finishShutdown(relaunch: RelaunchController, parentPid?: number): void {
+  if (relaunch.requested) {
+    if (parentPid === undefined) app.relaunch();
+    app.exit(parentPid === undefined ? 0 : RELAUNCH_EXIT_CODE);
+    return;
+  }
+  app.quit();
+}
+
+function stopAllServices(services: ShellShutdownServices): Promise<unknown> {
+  services.overlays.offline.dispose();
+  services.overlays.companion.dispose();
+  services.topology.dispose();
+  void services.dashboard.stop();
+  return Promise.all([services.soak.stop(), services.processes.stop()]);
+}
+
+export function registerShutdown(
+  services: ShellShutdownServices,
+  relaunch: RelaunchController,
+  parentPid?: number
+): void {
+  let isQuitting = false;
+  app.on('before-quit', event => {
+    if (isQuitting) return;
+    event.preventDefault();
+    isQuitting = true;
+    void stopAllServices(services).finally(() => finishShutdown(relaunch, parentPid));
+  });
 }

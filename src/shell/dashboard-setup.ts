@@ -21,20 +21,24 @@ function buildDashboardStatus(options: DashboardSetupOptions) {
   };
 }
 
+function defaultRelaunch(): void {
+  app.relaunch();
+  app.quit();
+}
+
 function buildDashboardActions(
   windows: readonly ManagedWindow[],
   overlays: ShellOverlays,
-  recalculateLayout: () => void
+  recalculateLayout: () => void,
+  relaunch = defaultRelaunch
 ) {
   return {
     windows,
     offline: overlays.offline,
     companion: overlays.companion,
     recalculateLayout,
-    relaunch: () => {
-      app.relaunch();
-      app.quit();
-    },
+    focusApp: () => app.focus({ steal: true }),
+    relaunch,
     quit: () => app.quit(),
   };
 }
@@ -49,12 +53,18 @@ export interface DashboardSetupOptions {
   readonly logs: LogBroadcast;
   readonly logger: Logger;
   readonly getSoak?: () => SoakState | undefined;
+  readonly relaunch?: () => void;
 }
 
 function buildDashboardInputs(options: DashboardSetupOptions) {
   return {
     status: buildDashboardStatus(options),
-    actions: buildDashboardActions(options.windows, options.overlays, options.recalculateLayout),
+    actions: buildDashboardActions(
+      options.windows,
+      options.overlays,
+      options.recalculateLayout,
+      options.relaunch
+    ),
   };
 }
 

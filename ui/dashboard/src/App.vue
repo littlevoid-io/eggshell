@@ -120,7 +120,7 @@ onUnmounted(() => {
         <DisplayLayout :displays="status?.displays ?? []" :windows="status?.windows ?? []" />
       </div>
 
-      <div class="flex flex-col h-[520px] lg:h-full lg:min-h-0 overflow-hidden">
+      <div class="flex flex-col h-130 lg:h-full lg:min-h-0 overflow-hidden">
         <LogConsole :lines="logLines" />
       </div>
     </main>

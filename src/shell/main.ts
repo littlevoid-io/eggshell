@@ -14,9 +14,10 @@ import {
 import { applyBrowserPermissions } from './browser-permissions.js';
 import { applyChromiumFlags } from './chromium-flags.js';
 import { startShellDashboard } from './dashboard-setup.js';
+import { createRelaunchController, type RelaunchController } from './relaunch.js';
 import { loadChromeExtensions } from './extensions.js';
 import type { IpcRouter } from './ipc.js';
-import { keepDisplayAwake, watchParent } from './lifecycle.js';
+import { keepDisplayAwake, registerShutdown, watchParent } from './lifecycle.js';
 import { createShellLogger } from './logger.js';
 import { resolveShellPaths } from './paths.js';
 import { startProductionProcesses, type ProductionProcesses } from './processes.js';
@@ -48,20 +49,6 @@ interface ShellServices {
   readonly dashboard: { stop: () => Promise<void> };
   readonly soak: SoakRunner;
   readonly processes: ProductionProcesses;
-}
-
-function registerShutdown(services: ShellServices): void {
-  let isQuitting = false;
-  app.on('before-quit', event => {
-    if (isQuitting) return;
-    event.preventDefault();
-    isQuitting = true;
-    services.overlays.offline.dispose();
-    services.overlays.companion.dispose();
-    services.topology.dispose();
-    void services.dashboard.stop();
-    void Promise.all([services.soak.stop(), services.processes.stop()]).finally(() => app.quit());
-  });
 }
 
 async function setupLogger(resolvedApp: ResolvedApp, logBufferSize: number) {
@@ -100,19 +87,11 @@ interface ServiceOptions {
   readonly processes: ProductionProcesses;
   readonly logs: LogBroadcast;
   readonly logger: Logger;
+  readonly relaunch: RelaunchController;
 }
 
-function startServices(options: ServiceOptions): ShellServices {
-  const holder: { runner?: SoakRunner } = {};
-  const dashboard = startShellDashboard({
-    ...options,
-    resolved,
-    recalculateLayout: () => options.topology.reapply(),
-    processes: () => options.processes.statuses(),
-    uiDirectory: paths.dashboardUi,
-    getSoak: () => holder.runner?.state,
-  });
-  holder.runner = startSoak({
+function initSoak(options: ServiceOptions): SoakRunner {
+  return startSoak({
     config: config.soak,
     windows: options.windows,
     resolved,
@@ -120,6 +99,24 @@ function startServices(options: ServiceOptions): ShellServices {
     logger: options.logger,
     isPackaged: app.isPackaged,
   });
+}
+
+function startServices(options: ServiceOptions): ShellServices {
+  const holder: { runner?: SoakRunner } = {};
+  const relaunch = () => {
+    options.relaunch.request();
+    app.quit();
+  };
+  const dashboard = startShellDashboard({
+    ...options,
+    resolved,
+    recalculateLayout: () => options.topology.reapply(),
+    processes: () => options.processes.statuses(),
+    uiDirectory: paths.dashboardUi,
+    getSoak: () => holder.runner?.state,
+    relaunch,
+  });
+  holder.runner = initSoak(options);
   return { ...options, dashboard, soak: holder.runner };
 }
 
@@ -136,13 +133,21 @@ function openKiosk(
 }
 
 async function onReady(): Promise<void> {
+  const relaunch = createRelaunchController();
   const { logBroadcast, logger } = await setupLogger(resolved, config.dashboard.logBufferSize);
   await initShell(resolved, logger, args.parentPid);
   const processes = await startProductionProcesses(resolved, app.isPackaged, logger);
   const windows = initWindows(resolved, logger);
   const kiosk = openKiosk(windows, logger);
-  const services = startServices({ ...kiosk, windows, processes, logs: logBroadcast, logger });
-  registerShutdown(services);
+  const services = startServices({
+    ...kiosk,
+    windows,
+    processes,
+    logs: logBroadcast,
+    logger,
+    relaunch,
+  });
+  registerShutdown(services, relaunch, args.parentPid);
   logger.info('Windows opened', { count: windows.length, isDev: resolved.isDev });
 }
 

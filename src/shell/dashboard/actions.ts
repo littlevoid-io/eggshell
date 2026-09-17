@@ -10,6 +10,7 @@ export interface ActionSources {
   readonly recalculateLayout: () => void;
   readonly relaunch: () => void;
   readonly quit: () => void;
+  readonly focusApp?: (() => void) | undefined;
 }
 
 function reloadManagedWindow({ window }: ManagedWindow): void {
@@ -18,15 +19,26 @@ function reloadManagedWindow({ window }: ManagedWindow): void {
   }
 }
 
+function restoreAndTop(window: ManagedWindow['window']): boolean {
+  if (window.isMinimized()) {
+    window.restore();
+  }
+  const wasAlwaysOnTop = window.isAlwaysOnTop();
+  window.show();
+  window.setAlwaysOnTop(true);
+  window.moveTop();
+  return wasAlwaysOnTop;
+}
+
 function focusManagedWindow({ window }: ManagedWindow): void {
   if (window.isDestroyed()) {
     return;
   }
-  if (window.isMinimized()) {
-    window.restore();
-  }
-  window.show();
+  const wasAlwaysOnTop = restoreAndTop(window);
   window.focus();
+  if (!wasAlwaysOnTop) {
+    window.setAlwaysOnTop(false);
+  }
 }
 
 function setOverlayVisibility(
@@ -43,7 +55,10 @@ function setOverlayVisibility(
 export function createActions(sources: ActionSources): DashboardActions {
   return {
     reloadWindows: () => sources.windows.forEach(reloadManagedWindow),
-    focusWindows: () => sources.windows.forEach(focusManagedWindow),
+    focusWindows: () => {
+      sources.focusApp?.();
+      sources.windows.forEach(focusManagedWindow);
+    },
     recalculateLayout: () => sources.recalculateLayout(),
     setOffline: showing => setOverlayVisibility(sources.offline, showing),
     setCompanion: showing => setOverlayVisibility(sources.companion, showing),

@@ -8,6 +8,7 @@ import { createActions } from './actions.js';
 interface FakeWindowOptions {
   destroyed?: boolean;
   minimized?: boolean;
+  alwaysOnTop?: boolean;
 }
 
 function createFakeWindow(options: FakeWindowOptions = {}) {
@@ -15,12 +16,18 @@ function createFakeWindow(options: FakeWindowOptions = {}) {
   const focusFn = vi.fn();
   const showFn = vi.fn();
   const restoreFn = vi.fn();
+  const moveTopFn = vi.fn();
+  const setAlwaysOnTopFn = vi.fn();
+  const isAlwaysOnTopFn = vi.fn().mockReturnValue(options.alwaysOnTop ?? false);
   const isMinimizedFn = vi.fn().mockReturnValue(options.minimized ?? false);
   const isDestroyedFn = vi.fn().mockReturnValue(options.destroyed ?? false);
 
   const window = {
     isDestroyed: isDestroyedFn,
     isMinimized: isMinimizedFn,
+    isAlwaysOnTop: isAlwaysOnTopFn,
+    setAlwaysOnTop: setAlwaysOnTopFn,
+    moveTop: moveTopFn,
     restore: restoreFn,
     show: showFn,
     focus: focusFn,
@@ -35,6 +42,9 @@ function createFakeWindow(options: FakeWindowOptions = {}) {
     focusFn,
     showFn,
     restoreFn,
+    moveTopFn,
+    setAlwaysOnTopFn,
+    isAlwaysOnTopFn,
     isMinimizedFn,
     isDestroyedFn,
   };
@@ -63,9 +73,10 @@ describe('dashboard actions', () => {
     expect(destroyed.reloadFn).not.toHaveBeenCalled();
   });
 
-  it('focuses non-destroyed windows and restores if minimized', () => {
-    const minimized = createFakeWindow({ destroyed: false, minimized: true });
-    const normal = createFakeWindow({ destroyed: false, minimized: false });
+  it('focuses non-destroyed windows, restores if minimized, and elevates z-order', () => {
+    const focusApp = vi.fn();
+    const minimized = createFakeWindow({ destroyed: false, minimized: true, alwaysOnTop: false });
+    const normal = createFakeWindow({ destroyed: false, minimized: false, alwaysOnTop: true });
     const destroyed = createFakeWindow({ destroyed: true, minimized: false });
     const windows: readonly ManagedWindow[] = [
       { id: 'minimized', window: minimized.window },
@@ -80,15 +91,24 @@ describe('dashboard actions', () => {
       recalculateLayout: vi.fn(),
       relaunch: vi.fn(),
       quit: vi.fn(),
+      focusApp,
     });
 
     actions.focusWindows();
+    expect(focusApp).toHaveBeenCalledTimes(1);
+
     expect(minimized.restoreFn).toHaveBeenCalledTimes(1);
     expect(minimized.showFn).toHaveBeenCalledTimes(1);
+    expect(minimized.setAlwaysOnTopFn).toHaveBeenNthCalledWith(1, true);
+    expect(minimized.moveTopFn).toHaveBeenCalledTimes(1);
     expect(minimized.focusFn).toHaveBeenCalledTimes(1);
+    expect(minimized.setAlwaysOnTopFn).toHaveBeenNthCalledWith(2, false);
 
     expect(normal.restoreFn).not.toHaveBeenCalled();
     expect(normal.showFn).toHaveBeenCalledTimes(1);
+    expect(normal.setAlwaysOnTopFn).toHaveBeenCalledWith(true);
+    expect(normal.setAlwaysOnTopFn).toHaveBeenCalledTimes(1);
+    expect(normal.moveTopFn).toHaveBeenCalledTimes(1);
     expect(normal.focusFn).toHaveBeenCalledTimes(1);
 
     expect(destroyed.restoreFn).not.toHaveBeenCalled();
