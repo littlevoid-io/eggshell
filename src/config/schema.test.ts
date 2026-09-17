@@ -216,7 +216,7 @@ describe('shellConfigSchema — minimal config and defaults', () => {
       remoteDebuggingPort: 9223,
     });
     expect(parsed.keybindings.enabled).toBe(true);
-    expect(parsed.keybindings.bindings).toHaveLength(5);
+    expect(parsed.keybindings.bindings).toHaveLength(10);
     expect(parsed.cursor).toEqual({ visible: 'auto' });
     expect(parsed.chromeExtensions).toEqual({ enabled: false, paths: [] });
     expect(parsed.offline).toEqual({
@@ -450,7 +450,7 @@ describe('shellConfigSchema — feature sections', () => {
   it('lets a consumer turn a default-on section off', () => {
     const parsed = shellConfigSchema.parse({ ...minimalConfig(), keybindings: { enabled: false } });
     expect(parsed.keybindings.enabled).toBe(false);
-    expect(parsed.keybindings.bindings).toHaveLength(5);
+    expect(parsed.keybindings.bindings).toHaveLength(10);
   });
 
   it('defaults a window target to primary', () => {

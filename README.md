@@ -62,21 +62,33 @@ Add `--help` for flags.
 
 Required: `appId`, `productName`, `windows`. Everything else is optional; `eggshell doctor` shows the resolved defaults.
 
-| Section              | Default | Purpose                                                                 |
-| -------------------- | ------- | ----------------------------------------------------------------------- |
-| `processes`          |         | Child servers per phase with readiness checks and restarts              |
-| `display`            |         | Display roles, touch probe, topology supervisor tuning                  |
-| `logging`            | on      | Rotating file log under the app's user data directory                   |
-| `keybindings`        | on      | `ctrl+q` quit, `shift+o` offline, `shift+c` cursor, `shift+?` companion |
-| `cursor`             | auto    | Hidden in kiosk mode                                                    |
-| `browserPermissions` | on      | Chromium permission allow-list (media, camera, microphone)              |
-| `chromiumFlags`      | on      | Kiosk switches, `force-device-scale-factor=1`                           |
-| `offline`            | on      | Overlay after the network has been gone for `timeoutMs`                 |
-| `companion`          | off     | QR overlay pointing to a LAN URL                                        |
-| `dashboard`          | off     | HTTP status/control API, live log console, web UI                       |
-| `chromeExtensions`   | off     | Unpacked extensions to load                                             |
-| `soak`               | off     | Seeded random interaction for long test runs (dev only)                 |
-| `build`              |         | Output dir, files to copy, extraResources, `dir` or `nsis`              |
+| Section              | Default | Purpose                                                                                                         |
+| -------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
+| `processes`          |         | Child servers per phase with readiness checks and restarts                                                      |
+| `display`            |         | Display roles, touch probe, topology supervisor tuning                                                          |
+| `logging`            | on      | Rotating file log under the app's user data directory                                                           |
+| `keybindings`        | on      | `ctrl+q` quit, `ctrl+shift+i` devtools, `ctrl+shift+o` offline, `ctrl+shift+c` cursor, `ctrl+shift+?` companion |
+| `cursor`             | auto    | Hidden in kiosk mode                                                                                            |
+| `browserPermissions` | on      | Chromium permission allow-list (media, camera, microphone)                                                      |
+| `chromiumFlags`      | on      | Kiosk switches, `force-device-scale-factor=1`                                                                   |
+| `offline`            | on      | Overlay after the network has been gone for `timeoutMs`                                                         |
+| `companion`          | off     | QR overlay pointing to a LAN URL                                                                                |
+| `dashboard`          | off     | HTTP status/control API, live log console, web UI                                                               |
+| `chromeExtensions`   | off     | Unpacked extensions to load                                                                                     |
+| `soak`               | off     | Seeded random interaction for long test runs (dev only)                                                         |
+| `build`              |         | Output dir, files to copy, extraResources, `dir` or `nsis`                                                      |
+
+## Keyboard shortcuts
+
+The shell captures shortcuts across all managed windows (`keybindings` config section):
+
+| Shortcut                       | Command            | Action                   |
+| ------------------------------ | ------------------ | ------------------------ |
+| `Ctrl+Q` / `Cmd+Q`             | `app.quit`         | Quit application         |
+| `Ctrl+Shift+I` / `Cmd+Shift+I` | `devtools.toggle`  | Toggle DevTools          |
+| `Ctrl+Shift+O` / `Cmd+Shift+O` | `offline.toggle`   | Toggle offline overlay   |
+| `Ctrl+Shift+C` / `Cmd+Shift+C` | `cursor.toggle`    | Toggle cursor visibility |
+| `Ctrl+Shift+?` / `Cmd+Shift+?` | `companion.toggle` | Toggle companion overlay |
 
 ## Renderer API
 

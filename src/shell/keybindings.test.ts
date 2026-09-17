@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import type { Input } from 'electron';
-import { matchKeybinding } from './keybindings.js';
+import { describe, expect, it, vi } from 'vitest';
+import type { BrowserWindow, Input } from 'electron';
+import { handleInput, matchKeybinding } from './keybindings.js';
 
 function keyDown(key: string, modifiers: Partial<Input> = {}): Input {
   return {
@@ -48,8 +48,60 @@ describe('matchKeybinding', () => {
     ).toBe(true);
   });
 
+  it('matches ctrl+shift+i and cmd+shift+i for devtools toggle', () => {
+    expect(
+      matchKeybinding(keyDown('i', { control: true, shift: true }), {
+        key: 'ctrl+shift+i',
+        command: 'devtools.toggle',
+      })
+    ).toBe(true);
+    expect(
+      matchKeybinding(keyDown('I', { meta: true, shift: true }), {
+        key: 'cmd+shift+i',
+        command: 'devtools.toggle',
+      })
+    ).toBe(true);
+    expect(
+      matchKeybinding(keyDown('i', { control: true }), {
+        key: 'ctrl+shift+i',
+        command: 'devtools.toggle',
+      })
+    ).toBe(false);
+  });
+
+  it('matches ctrl+shift+? for companion toggle', () => {
+    expect(
+      matchKeybinding(keyDown('?', { control: true, shift: true }), {
+        key: 'ctrl+shift+?',
+        command: 'companion.toggle',
+      })
+    ).toBe(true);
+  });
+
   it('ignores key up', () => {
     const input = { ...keyDown('q', { control: true }), type: 'keyUp' as const };
     expect(matchKeybinding(input, { key: 'ctrl+q', command: 'app.quit' })).toBe(false);
+  });
+});
+
+describe('handleInput', () => {
+  it('invokes matching command handler with target window', () => {
+    const fakeWindow = {} as BrowserWindow;
+    const handlers = {
+      'app.quit': vi.fn(),
+      'cursor.toggle': vi.fn(),
+      'offline.toggle': vi.fn(),
+      'companion.toggle': vi.fn(),
+      'devtools.toggle': vi.fn(),
+    };
+    const input = keyDown('i', { control: true, shift: true });
+    const match = handleInput(
+      fakeWindow,
+      input,
+      [{ key: 'ctrl+shift+i', command: 'devtools.toggle' }],
+      handlers
+    );
+    expect(match?.command).toBe('devtools.toggle');
+    expect(handlers['devtools.toggle']).toHaveBeenCalledWith(fakeWindow);
   });
 });

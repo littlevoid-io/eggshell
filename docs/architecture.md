@@ -39,7 +39,7 @@ Sections map one-to-one onto features:
 | `processes`          | Child servers per phase (`dev`, `production`, `always`), readiness, restart                    |
 | `display`            | Roles, touch probe, topology supervisor tuning                                                 |
 | `logging`            | File sink with rotation, level, directory                                                      |
-| `keybindings`        | Key → command list (quit, toggle cursor/offline/companion)                                     |
+| `keybindings`        | Key → command list (quit, toggle devtools/cursor/offline/companion)                            |
 | `cursor`             | Initial visibility                                                                             |
 | `chromeExtensions`   | Unpacked extension paths, relative to `appDir`                                                 |
 | `chromiumFlags`      | Chromium command-line switches appended at startup                                             |
@@ -57,7 +57,7 @@ On by default when a feature needs no input and has no external surface. Off whe
 | Section                                              | Default                                                                                                                                        |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `logging`                                            | On. Rotating file in `<userData>/logs`, 10 MB x 5 files.                                                                                       |
-| `keybindings`                                        | On. `ctrl+q` quit, `shift+o` offline, `shift+c` cursor, `shift+?` companion.                                                                   |
+| `keybindings`                                        | On. `ctrl+q` quit, `ctrl+shift+i` devtools, `ctrl+shift+o` offline, `ctrl+shift+c` cursor, `ctrl+shift+?` companion.                           |
 | `cursor`                                             | Derived: hidden when `kiosk: true`, visible otherwise.                                                                                         |
 | `offline`                                            | On. Electron `net.isOnline()`, no port.                                                                                                        |
 | `browserPermissions`                                 | On. Allow `media`, `camera`, `microphone`; deny the rest.                                                                                      |

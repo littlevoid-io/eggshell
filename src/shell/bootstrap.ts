@@ -81,10 +81,13 @@ function buildKeybindingHandlers(
   overlays: ShellOverlays
 ): CommandHandlers {
   return {
-    'app.quit': quit,
+    'app.quit': () => quit(),
     'cursor.toggle': () => cursor.toggle(),
     'offline.toggle': () => overlays.offline.toggle(),
     'companion.toggle': () => overlays.companion.toggle(),
+    'devtools.toggle': window => {
+      if (!window.isDestroyed()) window.webContents.toggleDevTools();
+    },
   };
 }
 

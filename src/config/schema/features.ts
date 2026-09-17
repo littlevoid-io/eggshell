@@ -31,33 +31,7 @@ export const chromiumFlagsSchema = z
   })
   .strict();
 
-export const KEYBINDING_COMMANDS = [
-  'app.quit',
-  'cursor.toggle',
-  'offline.toggle',
-  'companion.toggle',
-] as const;
-
-const keybindingSchema = z
-  .object({
-    /** Electron accelerator-style chord, e.g. `ctrl+q`, `shift+?`. */
-    key: nonEmptyString('keybindings.bindings[].key'),
-    command: z.enum(KEYBINDING_COMMANDS),
-  })
-  .strict();
-
-export const keybindingsSchema = z
-  .object({
-    enabled: enabledByDefault,
-    bindings: z.array(keybindingSchema).default([
-      { key: 'ctrl+q', command: 'app.quit' },
-      { key: 'cmd+q', command: 'app.quit' },
-      { key: 'shift+o', command: 'offline.toggle' },
-      { key: 'shift+c', command: 'cursor.toggle' },
-      { key: 'shift+?', command: 'companion.toggle' },
-    ]),
-  })
-  .strict();
+export { KEYBINDING_COMMANDS, keybindingSchema, keybindingsSchema } from './keybindings.js';
 
 /** `auto` hides the cursor when any window is in kiosk mode. */
 export const cursorSchema = z

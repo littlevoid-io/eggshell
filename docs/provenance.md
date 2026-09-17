@@ -29,7 +29,7 @@ Status: `ported` (behavior carried over) | `rewritten` (new implementation, same
 | `layoutRecovery` (re-apply on display change)  | `src/layout/supervisor.ts` wired by `src/shell/windows/topology.ts`      | rewritten | Unplug/replug monitor: layout re-applies once, no loop       |
 | Periodic layout check (setInterval)            | Topology signature dedup                                                 | dropped   | Caused retry-forever; replaced by event + attempt cap        |
 | `compatibility` GPU/vsync/spanning checks      | `eggshell doctor`                                                        | rewritten | Doctor reports GPU list and spanning warnings                |
-| `before-input-event` keybindings               | `keybindings` section, `src/shell/keybindings.ts`                        | rewritten | `ctrl+q` quits; `shift+c` toggles cursor                     |
+| `before-input-event` keybindings               | `keybindings` section, `src/shell/keybindings.ts`                        | rewritten | `ctrl+q` quits; `ctrl+shift+c` toggles cursor                |
 | `keybindings.json` defaults                    | `keybindingsSchema` defaults                                             | ported    | Absent section still quits on `ctrl+q`                       |
 | Cursor toggle (`applyCursorToWindows`)         | `cursor` section, `src/shell/cursor.ts`                                  | rewritten | Cursor hidden at start when `cursor.visible: false`          |
 | Blackout window (`app:blackout:show/hide` IPC) | `src/shell/blackout.ts` via `blackout:show/hide` IPC                     | ported    | IPC fades to black and back                                  |

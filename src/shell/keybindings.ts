@@ -4,7 +4,8 @@ import type { KEYBINDING_COMMANDS } from '../config/schema/features.js';
 import type { Logger } from '../logging/logger.js';
 
 export type KeybindingCommand = (typeof KEYBINDING_COMMANDS)[number];
-export type CommandHandlers = Record<KeybindingCommand, () => void>;
+export type CommandHandler = (window: BrowserWindow) => void;
+export type CommandHandlers = Record<KeybindingCommand, CommandHandler>;
 
 const MODIFIER_ALIASES: Record<string, keyof Pick<Input, 'shift' | 'control' | 'alt' | 'meta'>> = {
   shift: 'shift',
@@ -28,13 +29,14 @@ export function matchKeybinding(input: Input, binding: Keybinding): boolean {
   );
 }
 
-function handleInput(
+export function handleInput(
+  window: BrowserWindow,
   input: Input,
   bindings: readonly Keybinding[],
   handlers: CommandHandlers
 ): Keybinding | undefined {
   const match = bindings.find(binding => matchKeybinding(input, binding));
-  if (match) handlers[match.command]();
+  if (match) handlers[match.command](window);
   return match;
 }
 
@@ -47,7 +49,7 @@ export function attachKeybindings(
 ): void {
   if (!config.enabled) return;
   window.webContents.on('before-input-event', (event, input) => {
-    const match = handleInput(input, config.bindings, handlers);
+    const match = handleInput(window, input, config.bindings, handlers);
     if (!match) return;
     event.preventDefault();
     logger.info('keybinding', { key: match.key, command: match.command });
