@@ -67,6 +67,14 @@ export interface ParsedLogLine {
 
 export type ConnectionState = 'connected' | 'connecting' | 'offline';
 
+export interface ActionConfirmPayload {
+  readonly title: string;
+  readonly message: string;
+  readonly danger?: boolean | undefined;
+  readonly action: string;
+  readonly body?: unknown;
+}
+
 export type SseEvent =
   | { readonly type: 'status'; readonly status: DashboardStatus }
   | { readonly type: 'logs'; readonly lines: readonly string[] }
