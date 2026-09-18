@@ -15,19 +15,24 @@ This is a monorepo: the root package is the eggshell CLI/library (published as `
 - To test against a real consumer app via `npm link`, rebuild the library after every change: `npm run build:lib`. The link picks up a rebuilt `dist/` immediately; it does not watch.
 - `npm run dev:ui` runs the dashboard UI with HMR, proxying `/api` to a running kiosk's dashboard port.
 
-## Build and test commands
+## Verification matrix
 
-Run all of these before treating a change as finished — all must be clean:
+Select the minimal verification tier matching `git diff --name-only`:
 
-```sh
-npm run typecheck     # tsc --noEmit (root package only, not ui/dashboard)
-npm run lint          # eslint .           (npm run lint:fix to auto-fix)
-npm run format:check  # prettier --check . (npm run format to write)
-npm test              # vitest run, ~460 tests
-npm run build          # build:lib + build:ui (build:ui also runs vue-tsc --noEmit)
-```
+| Tier | Change scope | Applicable files | Required commands |
+|---|---|---|---|
+| **0** | Docs & non-runtime | `*.md`, `docs/**`, assets, `.gitignore` | None. Skip all builds and tests. |
+| **1** | Single module / unit | `src/layout/**`, `src/config/**`, `src/process/**` | `npx vitest run <path-to-test>` (targeted test) |
+| **2** | Dashboard UI | `ui/dashboard/**` | `npm run build:ui` (runs `vue-tsc --noEmit`) |
+| **3** | Cross-cutting / PR gate | Multi-package, core contracts, dependencies | `npm run typecheck ; npm run lint ; npm test` |
+| **4** | Pre-release build | Root `package.json`, release prep | `npm run build ; npm run format:check` |
 
-`npm run build` is the only command that typechecks `ui/dashboard`; run it whenever a change touches that workspace. Use `npm run test:watch` while iterating on a single area.
+### Verification rules
+
+- **Fast-path exemption:** Never run tests, typechecks, or linters when touching only Tier 0 files.
+- **Targeted test execution:** Run single-file tests (`npx vitest run <file>`) during iteration instead of the full ~460 test suite.
+- **Dashboard isolation:** Edits inside `ui/dashboard/**` only require `npm run build:ui`. Do not run root `npm run typecheck` or full `npm test`.
+- **Full gate trigger:** Run Tier 3 only when preparing PRs, modifying dependencies, or touching cross-layer contracts.
 
 ## Code style guidelines
 
@@ -58,5 +63,5 @@ npm run build          # build:lib + build:ui (build:ui also runs vue-tsc --noEm
 ## PR instructions
 
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`) — check `git log` for the established tone.
-- Run the full gate (typecheck, lint, format:check, test, build) before committing. Don't commit with a failing or skipped check.
+- Run the appropriate tier from the verification matrix before committing. Don't commit with failing checks.
 - Keep commits scoped to one logical change; split unrelated fixes into separate commits.
